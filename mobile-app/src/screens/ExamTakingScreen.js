@@ -61,9 +61,6 @@ export default function ExamTakingScreen({ route, navigation }) {
     },
   ];
 
-  // Primary screen capture prevention hook
-  ScreenCapture.usePreventScreenCapture();
-
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [codingAnswers, setCodingAnswers] = useState({});
@@ -80,35 +77,49 @@ export default function ExamTakingScreen({ route, navigation }) {
   const appState = useRef(AppState.currentState);
 
   /* ==============================================================================
-   * 1. Screen Capture & Recording Prevention
+   * 1. Screen Capture & Recording Prevention (expo-screen-capture)
    *
    * Note: On Android, preventScreenCaptureAsync() completely blocks screenshots
    * and screen recording at the OS window manager level (FLAG_SECURE).
    * On iOS, screen recording is blacked out, but the OS screenshot gesture cannot
    * be prevented by 3rd party apps — iOS screenshot events are detected via
    * addScreenshotListener and logged as security violations via POST /api/proctor/log-violation.
+   * On Web, screen capture prevention APIs are unsupported by browser sandboxes and
+   * gracefully bypassed.
    * ============================================================================== */
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      return;
+    }
+
+    let screenshotSubscription;
+
     const activateProtection = async () => {
       try {
         await ScreenCapture.preventScreenCaptureAsync();
       } catch (err) {
-        console.warn('ScreenCapture.preventScreenCaptureAsync failed:', err);
+        console.warn('[ScreenCapture] preventScreenCaptureAsync not supported:', err);
       }
     };
 
     activateProtection();
 
     // Listen for screenshot capture events (especially active on iOS)
-    const screenshotSubscription = ScreenCapture.addScreenshotListener(() => {
-      handleSecurityBreach(
-        'screenshot-attempt',
-        'Screenshot capture attempt detected during active examination session.'
-      );
-    });
+    try {
+      screenshotSubscription = ScreenCapture.addScreenshotListener(() => {
+        handleSecurityBreach(
+          'screenshot-attempt',
+          'Screenshot capture attempt detected during active examination session.'
+        );
+      });
+    } catch (err) {
+      console.warn('[ScreenCapture] addScreenshotListener failed:', err);
+    }
 
     return () => {
-      screenshotSubscription.remove();
+      if (screenshotSubscription && screenshotSubscription.remove) {
+        screenshotSubscription.remove();
+      }
       ScreenCapture.allowScreenCaptureAsync().catch(() => {});
     };
   }, []);
