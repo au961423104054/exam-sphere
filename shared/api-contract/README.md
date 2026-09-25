@@ -47,10 +47,13 @@ All REST endpoints are prefixed with `/api` and return standardized JSON respons
 ### 5. Exam Submissions & Taking (`/api/submissions`)
 - `POST /api/submissions/start` - Initialize exam attempt session
 - `POST /api/submissions/:id/answers` - Save / autosave question answers
+- `POST /api/submissions/:id/run-code` - Run student code against visible sample test cases in Judge0 sandbox
+- `POST /api/submissions/:id/submit-code` - Run student code against all test cases, compute marks, and save final answer
 - `POST /api/submissions/:id/submit` - Finalize and submit the exam
 - `GET /api/submissions/:id` - Retrieve candidate submission status
 
 ### 6. Proctoring & Security (`/api/proctor`)
+- `POST /api/proctor/log-violation` - Record anti-cheat incident (`tab-switch`, `fullscreen-exit`, `devtools-opened`, `screenshot-attempt`, `copy-paste-attempt`, `multiple-faces`, `no-face`), increment violation count, and auto-flag if threshold crossed
 - `POST /api/proctor/log` - Record proctoring violation incident (tab switch, face detection flag)
 - `POST /api/proctor/snapshot` - Upload and link webcam snapshot to incident
 - `GET /api/proctor/session/:submissionId` - Fetch all proctoring logs for a candidate submission
@@ -61,11 +64,21 @@ All REST endpoints are prefixed with `/api` and return standardized JSON respons
 - `GET /api/results/leaderboard/:examId` - Fetch ranked leaderboard for completed exam
 
 ### 8. Notifications (`/api/notifications`)
-- `GET /api/notifications` - Retrieve in-app notifications for authenticated user
-- `PUT /api/notifications/:id/read` - Mark a specific notification as read
+- `GET /api/notifications` - Retrieve in-app notifications for authenticated user (paginated with total & unreadCount)
+- `PATCH /api/notifications/:id/read` - Mark a specific notification as read
+- `PATCH /api/notifications/read-all` - Mark all unread notifications as read for current user
 - `POST /api/notifications/fcm-token` - Register or update device FCM token for push notifications
+
 
 ### 9. Organizations (`/api/orgs`)
 - `POST /api/orgs` - Create a new organization profile
 - `GET /api/orgs/:id` - Fetch organization details and settings
 - `PUT /api/orgs/:id` - Update organization profile and member policies
+
+### 10. Platform Administration (`/api/admin`) *(Admin Role Required)*
+- `GET /api/admin/organizations` - List all registered organizations and plans
+- `GET /api/admin/users` - List all users across the platform with optional role and search filtering
+- `PATCH /api/admin/users/:id/role` - Update a user's role (`student`, `teacher`, `admin`)
+- `GET /api/admin/exams` - List all exams across organizations with author details
+- `GET /api/admin/violations` - List all flagged submissions with incident logs and candidate metadata
+
