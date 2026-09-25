@@ -17,6 +17,7 @@ import { logProctorViolation, submitFinalExam } from '../services/api';
 import { saveExamProgress, getExamProgress, clearExamProgress } from '../utils/offlineStorage';
 import { formatDuration } from '../utils/formatters';
 import CodingQuestionView from '../components/CodingQuestionView';
+import MobileCameraFeed from '../components/MobileCameraFeed';
 
 export default function ExamTakingScreen({ route, navigation }) {
   const exam = route.params?.exam || {
@@ -394,6 +395,16 @@ export default function ExamTakingScreen({ route, navigation }) {
         )}
       </ScrollView>
 
+      {/* Floating Picture-in-Picture Webcam Feed (Front Camera, 30s snapshot upload) */}
+      <View style={styles.floatingCameraWrapper}>
+        <MobileCameraFeed
+          examId={exam.id || exam._id || 'exam_101'}
+          candidateEmail="alex.student@examsphere.io"
+          intervalSeconds={30}
+          enabled={true}
+        />
+      </View>
+
       {/* Footer Navigation & Submit */}
       <View style={styles.footerBar}>
         <TouchableOpacity
@@ -498,6 +509,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  floatingCameraWrapper: {
+    position: 'absolute',
+    bottom: 68,
+    right: 14,
+    zIndex: 99,
   },
   topBar: {
     flexDirection: 'row',

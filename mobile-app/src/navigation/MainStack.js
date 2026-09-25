@@ -4,6 +4,7 @@ import ExamListScreen from '../screens/ExamListScreen';
 import ExamDetailScreen from '../screens/ExamDetailScreen';
 import ExamTakingScreen from '../screens/ExamTakingScreen';
 import ResultsScreen from '../screens/ResultsScreen';
+import NotificationListScreen from '../screens/NotificationListScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -43,6 +44,13 @@ export default function MainStack() {
         options={{
           title: 'Performance Report',
           headerBackVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationListScreen}
+        options={{
+          title: 'Notification Center',
         }}
       />
     </Stack.Navigator>

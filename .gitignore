@@ -29,6 +29,10 @@ mobile-app/android/
 mobile-app/ios/
 android/
 ios/
+google-services.json
+GoogleService-Info.plist
+*.keystore
+*.jks
 
 # Logs
 logs/

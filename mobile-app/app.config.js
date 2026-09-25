@@ -28,6 +28,12 @@ module.exports = ({ config }) => ({
   plugins: [
     'expo-secure-store',
     'expo-font',
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'ExamSphere requires camera access for automated proctoring verification during examinations.',
+      },
+    ],
   ],
   extra: {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:5000/api',

@@ -12,10 +12,15 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { fetchExams } from '../services/api';
 import { ExamCardSkeleton } from '../components/Skeleton';
+import {
+  fetchNotifications,
+  registerForPushNotificationsAsync,
+} from '../services/notificationService';
 
 export default function ExamListScreen({ navigation }) {
   const { user, signOut } = useAuth();
   const [exams, setExams] = useState([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -23,6 +28,12 @@ export default function ExamListScreen({ navigation }) {
     try {
       const data = await fetchExams();
       setExams(data);
+
+      // Load notifications and register push notifications
+      const notifs = await fetchNotifications();
+      const unread = (notifs || []).filter((n) => !n.read).length;
+      setUnreadNotifCount(unread);
+      registerForPushNotificationsAsync().catch(() => {});
     } catch (err) {
       console.warn('Failed to load exams:', err);
     } finally {
@@ -106,9 +117,24 @@ export default function ExamListScreen({ navigation }) {
             Candidate: <Text style={styles.candidateName}>{user?.name || 'Alex Student'}</Text>
           </Text>
         </View>
-        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+
+        <View style={styles.topRightRow}>
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Text style={styles.bellIcon}>🔔</Text>
+            {unreadNotifCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadNotifCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Title & Filter Bar */}
@@ -183,6 +209,39 @@ const styles = StyleSheet.create({
   candidateName: {
     fontWeight: '600',
     color: '#2563EB',
+  },
+  topRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bellBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    position: 'relative',
+  },
+  bellIcon: {
+    fontSize: 16,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#4F46E5',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
   signOutBtn: {
     paddingHorizontal: 12,
