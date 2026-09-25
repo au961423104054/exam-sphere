@@ -11,6 +11,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { AuthProvider } from './src/context/AuthContext';
+import { OrgProvider } from './src/context/OrgContext';
 import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
@@ -32,10 +33,12 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </NavigationContainer>
+        <OrgProvider>
+          <NavigationContainer>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </NavigationContainer>
+        </OrgProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

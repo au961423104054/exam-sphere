@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useOrg } from '../context/OrgContext';
 import { fetchExams } from '../services/api';
 import { ExamCardSkeleton } from '../components/Skeleton';
 import {
@@ -19,6 +20,7 @@ import {
 
 export default function ExamListScreen({ navigation }) {
   const { user, signOut } = useAuth();
+  const { activeOrg } = useOrg();
   const [exams, setExams] = useState([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -127,14 +129,29 @@ export default function ExamListScreen({ navigation }) {
 
       {/* Header Bar */}
       <View style={styles.topNav}>
-        <View>
+        <View style={styles.topLeftBlock}>
           <Text style={styles.appName}>ExamSphere</Text>
-          <Text style={styles.greeting}>
-            Candidate: <Text style={styles.candidateName}>{user?.name || 'Alex Student'}</Text>
-          </Text>
+          <TouchableOpacity
+            style={[styles.orgChip, { borderColor: `${activeOrg.brandColor || '#4F46E5'}40` }]}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('OrgSettings')}
+          >
+            <Text style={styles.orgChipIcon}>{activeOrg.logoIcon || '🏛️'}</Text>
+            <Text style={styles.orgChipText} numberOfLines={1}>
+              {activeOrg.shortName || activeOrg.name}
+            </Text>
+            <Text style={styles.orgChipArrow}>▾</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.topRightRow}>
+          <TouchableOpacity
+            style={styles.headerIconBtn}
+            onPress={() => navigation.navigate('OrgSettings')}
+          >
+            <Text style={styles.headerIconEmoji}>⚙️</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.bellBtn}
             onPress={() => navigation.navigate('Notifications')}
@@ -152,6 +169,35 @@ export default function ExamListScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Institutional Affiliation Banner */}
+      <TouchableOpacity
+        style={styles.institutionBanner}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('OrgSettings')}
+      >
+        <View style={styles.institutionBannerLeft}>
+          <View style={[styles.instBannerLogoBox, { backgroundColor: `${activeOrg.brandColor}15` }]}>
+            <Text style={styles.instBannerLogoText}>{activeOrg.logoIcon}</Text>
+          </View>
+          <View style={styles.instBannerTextCol}>
+            <View style={styles.instNameRow}>
+              <Text style={styles.instTitleText} numberOfLines={1}>
+                {activeOrg.name}
+              </Text>
+              {activeOrg.verified && (
+                <View style={styles.instVerifiedBadge}>
+                  <Text style={styles.instVerifiedText}>✓ VERIFIED</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.instSubText}>
+              {activeOrg.plan} • {activeOrg.code} • Proctoring active
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.instManageLink}>Switch →</Text>
+      </TouchableOpacity>
 
       {/* Title & Filter Bar */}
       <View style={styles.sectionHeader}>
@@ -217,6 +263,36 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     letterSpacing: -0.5,
   },
+  topLeftBlock: {
+    flex: 1,
+    marginRight: 10,
+  },
+  orgChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 3,
+    alignSelf: 'flex-start',
+  },
+  orgChipIcon: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  orgChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+    maxWidth: 130,
+  },
+  orgChipArrow: {
+    fontSize: 10,
+    color: '#64748B',
+    marginLeft: 3,
+  },
   greeting: {
     fontSize: 12,
     color: '#64748B',
@@ -229,7 +305,85 @@ const styles = StyleSheet.create({
   topRightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+  },
+  headerIconBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  headerIconEmoji: {
+    fontSize: 16,
+  },
+  institutionBanner: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  institutionBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  instBannerLogoBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  instBannerLogoText: {
+    fontSize: 18,
+  },
+  instBannerTextCol: {
+    flex: 1,
+  },
+  instNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  instTitleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    flexShrink: 1,
+  },
+  instVerifiedBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  instVerifiedText: {
+    color: '#15803D',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  instSubText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  instManageLink: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4F46E5',
   },
   bellBtn: {
     padding: 6,
