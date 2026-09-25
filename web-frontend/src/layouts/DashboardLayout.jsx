@@ -18,6 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Badge } from '../components/ui/Badge';
+import { NotificationCenter } from '../components/notifications/NotificationCenter';
 import { examSphereApi } from '../services/api';
 
 export function DashboardLayout({ children, currentRole = 'student' }) {
@@ -215,11 +216,8 @@ export function DashboardLayout({ children, currentRole = 'student' }) {
               <span>Contract API Ready</span>
             </div>
 
-            {/* Notification Bell */}
-            <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-150 rounded-lg transition-colors relative">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-indigo-600 rounded-full" />
-            </button>
+            {/* Notification Center */}
+            <NotificationCenter />
 
             {/* Active User Menu */}
             <div className="relative">

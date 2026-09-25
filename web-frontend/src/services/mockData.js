@@ -410,3 +410,36 @@ export async function executeMockCode(language, code, testCases) {
     memoryKb: 14280,
   };
 }
+
+export const mockNotifications = [
+  {
+    id: 'notif-1',
+    title: 'Exam Starting Soon',
+    message: 'CS101: Data Structures Final scheduled window is now open. Automated proctoring enabled.',
+    type: 'warning',
+    timestamp: '10 minutes ago',
+    read: false,
+    link: '/exam/exam-cs101',
+  },
+  {
+    id: 'notif-2',
+    title: 'Grade Report Published',
+    message: 'Your score for BIO102: Molecular Genetics has been released. Score: 46 / 50 (A).',
+    type: 'success',
+    timestamp: '2 hours ago',
+    read: false,
+    link: '/student/dashboard',
+  },
+  {
+    id: 'notif-3',
+    title: 'Proctoring System Verified',
+    message: 'Webcam snapshot interval active at 30 seconds. Video permissions confirmed.',
+    type: 'info',
+    timestamp: '1 day ago',
+    read: true,
+    link: null,
+  },
+];
+
+export const mockSnapshots = [];
+

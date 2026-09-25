@@ -4,6 +4,8 @@ import {
   mockOrganizations,
   mockExams,
   mockViolations,
+  mockNotifications,
+  mockSnapshots,
   executeMockCode,
 } from './mockData';
 
@@ -193,6 +195,58 @@ export const examSphereApi = {
         mockViolations.unshift(record);
         console.warn('[Proctor Security Logged]:', record);
         return { success: true, data: record };
+      }
+    },
+    uploadSnapshot: async ({ examId, candidateEmail, imageBase64, timestamp }) => {
+      try {
+        const res = await api.post('/proctor/snapshot', {
+          examId,
+          candidateEmail,
+          imageBase64,
+          timestamp: timestamp || new Date().toISOString(),
+        });
+        return res.data;
+      } catch {
+        const snapshot = {
+          id: `snap-${Date.now()}`,
+          examId,
+          candidateEmail,
+          timestamp: timestamp || new Date().toISOString(),
+          url: imageBase64,
+        };
+        mockSnapshots.push(snapshot);
+        return { success: true, data: snapshot };
+      }
+    },
+  },
+
+  // Notifications
+  notifications: {
+    list: async () => {
+      try {
+        const res = await api.get('/notifications');
+        return res.data;
+      } catch {
+        return { success: true, data: mockNotifications };
+      }
+    },
+    markAsRead: async (notificationId) => {
+      try {
+        const res = await api.put(`/notifications/${notificationId}/read`);
+        return res.data;
+      } catch {
+        const item = mockNotifications.find((n) => n.id === notificationId);
+        if (item) item.read = true;
+        return { success: true, data: item };
+      }
+    },
+    markAllAsRead: async () => {
+      try {
+        const res = await api.put('/notifications/read-all');
+        return res.data;
+      } catch {
+        mockNotifications.forEach((n) => (n.read = true));
+        return { success: true, data: mockNotifications };
       }
     },
   },

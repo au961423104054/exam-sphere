@@ -62,5 +62,6 @@ coverage/
 .eslintcache
 *.tsbuildinfo
 .turbo/
+.vite/
 tmp/
 scratch/

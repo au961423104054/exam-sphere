@@ -19,12 +19,16 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/Dialog';
 import { CodeEditor } from '../components/exam/CodeEditor';
+import { WebcamFeed } from '../components/exam/WebcamFeed';
 import { useProctorIntegrity } from '../hooks/useProctorIntegrity';
+import { useWebcamProctor } from '../hooks/useWebcamProctor';
+import { useNotifications } from '../context/NotificationContext';
 import { examSphereApi } from '../services/api';
 
 export default function ExamRunner() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useNotifications();
 
   const [exam, setExam] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -32,6 +36,22 @@ export default function ExamRunner() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submissionResult, setSubmissionResult] = useState(null);
+
+  // Webcam periodic snapshot proctoring (30-second interval)
+  const webcamProctor = useWebcamProctor({
+    examId: id || 'exam-cs101',
+    candidateEmail: 'alex.rivera@student.mit.edu',
+    intervalSeconds: 30,
+    enabled: !isSubmitted,
+    onSnapshotCaptured: ({ count }) => {
+      showToast({
+        type: 'info',
+        title: 'Proctoring Snapshot Uploaded',
+        message: `Webcam frame #${count} captured and linked to session audit log.`,
+        duration: 3000,
+      });
+    },
+  });
 
   // Anti-cheat & integrity proctor hook
   const {
@@ -53,6 +73,12 @@ export default function ExamRunner() {
     candidateEmail: 'alex.rivera@student.mit.edu',
     maxViolations: 3,
     onAutoSubmit: async () => {
+      showToast({
+        type: 'destructive',
+        title: 'Assessment Auto-Submitted',
+        message: 'Security violation threshold exceeded. Your exam has been locked.',
+        duration: 8000,
+      });
       // Auto-submit when violations max out
       const res = await examSphereApi.submissions.submit(id || 'exam-cs101', {
         autoSubmitted: true,
@@ -86,6 +112,18 @@ export default function ExamRunner() {
     const secs = seconds % 60;
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
+
+  // Trigger real-time toast alert on proctoring infractions
+  useEffect(() => {
+    if (currentWarning) {
+      showToast({
+        type: 'warning',
+        title: `Proctoring Warning: ${currentWarning.type}`,
+        message: `${currentWarning.details} (${currentWarning.remaining} violation(s) remaining)`,
+        duration: 5500,
+      });
+    }
+  }, [currentWarning, showToast]);
 
   const handleManualSubmit = async () => {
     setShowSubmitModal(false);
@@ -271,6 +309,9 @@ export default function ExamRunner() {
           />
         </section>
       </main>
+
+      {/* PICTURE-IN-PICTURE WEBCAM PROCTORING FEED */}
+      <WebcamFeed proctor={webcamProctor} />
 
       {/* WARNING MODAL: Triggered on Integrity Infraction */}
       <Dialog open={warningModalOpen} onOpenChange={setWarningModalOpen}>
