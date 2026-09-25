@@ -50,6 +50,10 @@ const examSchema = new mongoose.Schema(
     randomizeOrder: {
       type: Boolean,
       default: false
+    },
+    reminderSent: {
+      type: Boolean,
+      default: false
     }
   },
   {

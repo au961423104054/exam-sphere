@@ -64,9 +64,11 @@ All REST endpoints are prefixed with `/api` and return standardized JSON respons
 - `GET /api/results/leaderboard/:examId` - Fetch ranked leaderboard for completed exam
 
 ### 8. Notifications (`/api/notifications`)
-- `GET /api/notifications` - Retrieve in-app notifications for authenticated user
-- `PUT /api/notifications/:id/read` - Mark a specific notification as read
+- `GET /api/notifications` - Retrieve in-app notifications for authenticated user (paginated with total & unreadCount)
+- `PATCH /api/notifications/:id/read` - Mark a specific notification as read
+- `PATCH /api/notifications/read-all` - Mark all unread notifications as read for current user
 - `POST /api/notifications/fcm-token` - Register or update device FCM token for push notifications
+
 
 ### 9. Organizations (`/api/orgs`)
 - `POST /api/orgs` - Create a new organization profile

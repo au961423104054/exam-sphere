@@ -5,22 +5,28 @@ const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
+const { startExamReminderJob } = require('./jobs/examReminderJob');
 
 // Import Route Handlers
 const authRoutes = require('./routes/authRoutes');
 const submissionRoutes = require('./routes/submissionRoutes');
 const proctorRoutes = require('./routes/proctorRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
 // Connect to MongoDB Atlas
-connectDB();
+connectDB().then(() => {
+  // Start background cron jobs after DB connection is established
+  startExamReminderJob();
+});
 
 // Global Middleware
 app.use(cors());
 app.use(morgan('dev'));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
 // Base Health-Check Route
@@ -33,6 +39,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/proctor', proctorRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 404 Handler for undefined API routes
 app.use((req, res) => {
