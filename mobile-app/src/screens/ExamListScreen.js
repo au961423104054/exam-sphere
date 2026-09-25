@@ -95,13 +95,29 @@ export default function ExamListScreen({ navigation }) {
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.actionBtn}
-        activeOpacity={0.8}
-        onPress={() => handleSelectExam(item)}
-      >
-        <Text style={styles.actionBtnText}>View Exam Guidelines →</Text>
-      </TouchableOpacity>
+      <View style={styles.cardActionsRow}>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          activeOpacity={0.8}
+          onPress={() => handleSelectExam(item)}
+        >
+          <Text style={styles.actionBtnText}>Guidelines →</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.leaderboardBtn}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.navigate('Leaderboard', {
+              examId: item.id || item._id,
+              examTitle: item.title,
+              totalMarks: item.totalMarks || 100,
+            })
+          }
+        >
+          <Text style={styles.leaderboardBtnText}>🏆 Rankings</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -364,15 +380,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1E293B',
   },
+  cardActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 2,
+  },
   actionBtn: {
-    backgroundColor: '#2563EB',
-    paddingVertical: 12,
+    flex: 1.4,
+    backgroundColor: '#4F46E5',
+    paddingVertical: 11,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   actionBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  leaderboardBtn: {
+    flex: 1,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    paddingVertical: 11,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leaderboardBtnText: {
+    color: '#4338CA',
+    fontSize: 13,
     fontWeight: '700',
   },
   emptyContainer: {
