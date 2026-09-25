@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,68 +6,188 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { downloadAndShareCertificate } from '../services/certificateService';
 
 export default function ResultsScreen({ route, navigation }) {
   const params = route.params || {};
   const score = params.score ?? 85;
   const totalMarks = params.totalMarks ?? 100;
-  const isPassed = score >= 50;
+  const violationsCount = params.violationsCount ?? 0;
+  const autoSubmitted = params.autoSubmitted ?? false;
+  const autoSubmitReason = params.autoSubmitReason;
+  const examId = params.examId || 'exam_101';
+  const examTitle = params.examTitle || 'Full-Stack MERN Architecture Assessment';
+  const candidateName = params.candidateName || 'Alex Student';
+  const isPassed = score >= 50 && violationsCount < 3;
+
+  const [isDownloadingCert, setIsDownloadingCert] = useState(false);
+
+  const handleDownloadCertificate = async () => {
+    try {
+      setIsDownloadingCert(true);
+      const res = await downloadAndShareCertificate({
+        candidateName,
+        examTitle,
+        score,
+        totalMarks,
+        percentage: `${Math.round((score / totalMarks) * 100)}%`,
+        grade: score >= 80 ? 'Grade A - Distinction' : 'Grade B - Credit',
+        issueDate: new Date().toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+      });
+
+      if (!res.success && res.error) {
+        Alert.alert('Notice', 'Unable to generate certificate PDF.');
+      }
+    } finally {
+      setIsDownloadingCert(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.resultBanner}>
-          <Text style={styles.bannerEmoji}>{isPassed ? '🎉' : '📚'}</Text>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Banner */}
+        <View style={styles.bannerBox}>
+          <Text style={styles.bannerEmoji}>
+            {autoSubmitted ? '⚠️' : isPassed ? '🎉' : '📊'}
+          </Text>
           <Text style={styles.bannerTitle}>
-            {isPassed ? 'Examination Completed!' : 'Assessment Finished'}
+            {autoSubmitted
+              ? 'Assessment Auto-Submitted'
+              : isPassed
+              ? 'Examination Completed!'
+              : 'Evaluation Finished'}
           </Text>
           <Text style={styles.bannerSubtitle}>
-            {isPassed ? 'Congratulations! You achieved a passing score.' : 'Review your areas for improvement.'}
+            {autoSubmitted
+              ? autoSubmitReason || 'Submission was finalized automatically by proctoring engine.'
+              : isPassed
+              ? 'Congratulations! You have successfully passed the assessment.'
+              : 'Your score has been computed. Review performance metrics below.'}
           </Text>
         </View>
 
-        <View style={styles.scoreCard}>
+        {/* Score Card */}
+        <View style={styles.card}>
           <Text style={styles.scoreLabel}>Final Candidate Score</Text>
           <View style={styles.scoreRow}>
-            <Text style={styles.bigScore}>{score}</Text>
-            <Text style={styles.totalScore}> / {totalMarks}</Text>
+            <Text style={[styles.scoreValue, isPassed ? styles.textBlue : styles.textRed]}>
+              {score}
+            </Text>
+            <Text style={styles.scoreTotal}> / {totalMarks}</Text>
           </View>
+
           <View style={[styles.statusBadge, isPassed ? styles.badgePass : styles.badgeFail]}>
-            <Text style={[styles.statusBadgeText, isPassed ? styles.textPass : styles.textFail]}>
-              Status: {isPassed ? 'PASSED (Grade A)' : 'NEEDS RETAKE'}
+            <Text style={[styles.statusBadgeText, isPassed ? styles.textPassDark : styles.textFailDark]}>
+              Result: {isPassed ? 'PASSED (Grade A)' : autoSubmitted ? 'FLAGGED / FAIL' : 'FAILED'}
             </Text>
           </View>
         </View>
 
-        <View style={styles.statsCard}>
-          <Text style={styles.statsTitle}>Performance Metrics</Text>
-          <View style={styles.metricRow}>
-            <Text style={styles.metricLabel}>Answered Questions</Text>
-            <Text style={styles.metricValue}>{params.answeredCount ?? 3} / {params.totalQuestions ?? 3}</Text>
+        {/* Proctoring Verification Summary Card */}
+        <View style={styles.card}>
+          <Text style={styles.cardHeading}>Proctoring & Integrity Audit</Text>
+
+          <View style={styles.auditRow}>
+            <Text style={styles.auditLabel}>Violations Triggered</Text>
+            <View style={[styles.pill, violationsCount === 0 ? styles.pillGreen : styles.pillYellow]}>
+              <Text style={[styles.pillText, violationsCount === 0 ? styles.textPassDark : styles.textYellowDark]}>
+                {violationsCount} Incidents
+              </Text>
+            </View>
           </View>
-          <View style={styles.metricRow}>
-            <Text style={styles.metricLabel}>Proctoring Violations</Text>
-            <Text style={styles.metricValue}>0 (Verified)</Text>
+
+          <View style={styles.auditRow}>
+            <Text style={styles.auditLabel}>Screen Capture Shield</Text>
+            <Text style={styles.auditValue}>Active (Enforced)</Text>
           </View>
-          <View style={styles.metricRow}>
-            <Text style={styles.metricLabel}>Evaluation Engine</Text>
-            <Text style={styles.metricValue}>MERN Auto-Grader v1.0</Text>
+
+          <View style={styles.auditRow}>
+            <Text style={styles.auditLabel}>App-Switching Listener</Text>
+            <Text style={styles.auditValue}>Verified</Text>
+          </View>
+
+          <View style={[styles.auditRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.auditLabel}>Audit Status</Text>
+            <Text style={[styles.auditValue, violationsCount < 3 ? styles.textGreen : styles.textRed]}>
+              {violationsCount < 3 ? 'Verified Valid Session' : 'Breach Limit Exceeded'}
+            </Text>
           </View>
         </View>
 
+        {/* Evaluation Engine Metadata */}
+        <View style={styles.card}>
+          <Text style={styles.cardHeading}>Grading Engine Summary</Text>
+          <View style={styles.auditRow}>
+            <Text style={styles.auditLabel}>Objective Grading</Text>
+            <Text style={styles.auditValue}>Automated (MCQ/TF)</Text>
+          </View>
+          <View style={styles.auditRow}>
+            <Text style={styles.auditLabel}>Code Test Runner</Text>
+            <Text style={styles.auditValue}>Sandbox Executed</Text>
+          </View>
+          <View style={[styles.auditRow, { borderBottomWidth: 0 }]}>
+            <Text style={styles.auditLabel}>Recorded In Database</Text>
+            <Text style={styles.auditValue}>MongoDB Submission Log</Text>
+          </View>
+        </View>
+
+        {/* Phase 3: Certificate Download & Leaderboard Actions */}
+        {isPassed && (
+          <TouchableOpacity
+            style={styles.certActionBtn}
+            activeOpacity={0.8}
+            onPress={handleDownloadCertificate}
+            disabled={isDownloadingCert}
+          >
+            {isDownloadingCert ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.certActionText}>🎓 Download Official Certificate (PDF)</Text>
+            )}
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
-          style={styles.primaryBtn}
+          style={styles.leaderboardBtn}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.navigate('Leaderboard', {
+              examId,
+              examTitle,
+              score,
+              totalMarks,
+            })
+          }
+        >
+          <Text style={styles.leaderboardBtnText}>🏆 View Live Leaderboard Rankings</Text>
+        </TouchableOpacity>
+
+        {/* Navigation Actions */}
+        <TouchableOpacity
+          style={styles.primaryActionBtn}
+          activeOpacity={0.8}
           onPress={() => navigation.navigate('ExamList')}
         >
-          <Text style={styles.primaryBtnText}>Return to Exam Dashboard</Text>
+          <Text style={styles.primaryActionText}>Return to Exam Dashboard →</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.secondaryBtn}
+          style={styles.secondaryActionBtn}
+          activeOpacity={0.8}
           onPress={() => navigation.navigate('Auth', { screen: 'Login' })}
         >
-          <Text style={styles.secondaryBtnText}>Sign Out</Text>
+          <Text style={styles.secondaryActionText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -80,68 +200,80 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   scrollContent: {
-    padding: 20,
+    padding: 18,
     alignItems: 'center',
   },
-  resultBanner: {
+  bannerBox: {
     alignItems: 'center',
     marginBottom: 20,
+    width: '100%',
   },
   bannerEmoji: {
-    fontSize: 48,
+    fontSize: 44,
     marginBottom: 8,
   },
   bannerTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: '#0F172A',
-  },
-  bannerSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 4,
     textAlign: 'center',
   },
-  scoreCard: {
+  bannerSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
+    maxWidth: 320,
+  },
+  card: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
+    borderRadius: 14,
+    padding: 20,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    elevation: 2,
+    alignItems: 'center',
   },
   scoreLabel: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '700',
     color: '#64748B',
-    fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginVertical: 12,
+    marginVertical: 10,
   },
-  bigScore: {
+  scoreValue: {
     fontSize: 48,
     fontWeight: '900',
+  },
+  scoreTotal: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  textBlue: {
     color: '#2563EB',
   },
-  totalScore: {
-    fontSize: 20,
-    color: '#64748B',
-    fontWeight: '600',
+  textRed: {
+    color: '#DC2626',
+  },
+  textGreen: {
+    color: '#16A34A',
   },
   statusBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
     borderRadius: 20,
   },
   badgePass: {
@@ -152,66 +284,112 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
-  textPass: {
+  textPassDark: {
     color: '#15803D',
   },
-  textFail: {
-    color: '#B91C1C',
+  textFailDark: {
+    color: '#991B1B',
   },
-  statsCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  textYellowDark: {
+    color: '#92400E',
   },
-  statsTitle: {
-    fontSize: 16,
+  cardHeading: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#1E293B',
+    alignSelf: 'flex-start',
     marginBottom: 12,
   },
-  metricRow: {
+  auditRow: {
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    alignItems: 'center',
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  metricLabel: {
-    fontSize: 14,
+  auditLabel: {
+    fontSize: 13,
     color: '#64748B',
+    fontWeight: '500',
   },
-  metricValue: {
-    fontSize: 14,
-    fontWeight: '600',
+  auditValue: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#0F172A',
   },
-  primaryBtn: {
+  pill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  pillGreen: {
+    backgroundColor: '#DCFCE7',
+  },
+  pillYellow: {
+    backgroundColor: '#FEF3C7',
+  },
+  pillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  certActionBtn: {
     width: '100%',
-    backgroundColor: '#2563EB',
+    backgroundColor: '#0D9488',
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#0D9488',
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  certActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  leaderboardBtn: {
+    width: '100%',
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+    paddingVertical: 13,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  leaderboardBtnText: {
+    color: '#4338CA',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  primaryActionBtn: {
+    width: '100%',
+    backgroundColor: '#4F46E5',
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: 'center',
     marginBottom: 12,
   },
-  primaryBtnText: {
+  primaryActionText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
-  secondaryBtn: {
+  secondaryActionBtn: {
     width: '100%',
     backgroundColor: '#F1F5F9',
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
-  secondaryBtnText: {
+  secondaryActionText: {
     color: '#475569',
     fontSize: 14,
     fontWeight: '600',
