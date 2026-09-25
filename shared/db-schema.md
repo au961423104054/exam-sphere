@@ -61,12 +61,17 @@ Represents an individual question belonging to an exam or question bank.
 | :--- | :--- | :--- |
 | `_id` | `ObjectId` | Primary key |
 | `examId` | `ObjectId` | Reference to `Exam._id` |
-| `type` | `String` | Question type enum: `'mcq'` \| `'tf'` \| `'subjective'` |
+| `type` | `String` | Question type enum: `'mcq'` \| `'tf'` \| `'subjective'` \| `'coding'` |
 | `text` | `String` | The question statement / markdown text |
-| `options` | `Array<String>` | List of choices (populated for `'mcq'`; optional for `'tf'` / empty for `'subjective'`) |
+| `options` | `Array<String>` | List of choices (populated for `'mcq'`; optional for `'tf'` / empty for `'subjective'` / `'coding'`) |
 | `correctAnswer` | `Mixed` | Correct answer reference: `String` (MCQ/TF option or text key) |
 | `marks` | `Number` | Maximum marks/points allocated to this question |
 | `tags` | `Array<String>` | Subject / topic / difficulty tags (e.g., `['math', 'algebra']`) |
+| `language` | `String` | Programming language for `'coding'` type: `'javascript'` \| `'python'` \| `'java'` \| `'cpp'` |
+| `starterCode` | `String` | Starter code template provided to the student |
+| `testCases` | `Array<TestCase>` | List of test cases: `[{ input: String, expectedOutput: String, isHidden: Boolean }]` |
+| `timeLimitMs` | `Number` | Execution timeout in milliseconds (default: `2000`) |
+| `memoryLimitMb` | `Number` | Memory limit in megabytes (default: `128`) |
 | `createdAt` | `Date` | Creation timestamp |
 | `updatedAt` | `Date` | Last modified timestamp |
 
@@ -80,10 +85,11 @@ Represents a student's attempt and answers for an exam.
 | `_id` | `ObjectId` | Primary key |
 | `examId` | `ObjectId` | Reference to `Exam._id` |
 | `studentId` | `ObjectId` | Reference to `User._id` |
-| `answers` | `Array<Answer>` | Array of answer items: `[{ questionId: ObjectId, selectedOption: Mixed, answerText: String, marksAwarded: Number }]` |
+| `answers` | `Array<Answer>` | Array of answer items: `[{ questionId: ObjectId, selectedOption: Mixed, answerText: String, code: String, language: String, marksAwarded: Number, testResults: Array }]` |
 | `score` | `Number` | Total score achieved after grading |
-| `status` | `String` | Submission status enum: `'in-progress'` \| `'submitted'` \| `'graded'` |
-| `proctorFlags` | `Array<String>` | Summary of triggered violation tags: `['tab-switch', 'multi-face', 'no-face']` |
+| `status` | `String` | Submission status enum: `'in-progress'` \| `'submitted'` \| `'graded'` \| `'flagged-for-review'` |
+| `violationCount`| `Number` | Total count of logged anti-cheat security incidents (default: `0`) |
+| `proctorFlags` | `Array<String>` | Summary of triggered violation tags: `['tab-switch', 'fullscreen-exit', 'devtools-opened', 'screenshot-attempt', 'copy-paste-attempt', 'multiple-faces', 'no-face']` |
 | `submittedAt` | `Date` | Timestamp of final submission |
 | `createdAt` | `Date` | Attempt initialization timestamp |
 | `updatedAt` | `Date` | Last updated timestamp |
@@ -97,9 +103,10 @@ Represents an automated proctoring event or security incident recorded during an
 | :--- | :--- | :--- |
 | `_id` | `ObjectId` | Primary key |
 | `submissionId` | `ObjectId` | Reference to `Submission._id` |
-| `type` | `String` | Incident type enum: `'tab-switch'` \| `'no-face'` \| `'multi-face'` |
+| `type` | `String` | Incident type enum: `'tab-switch'` \| `'fullscreen-exit'` \| `'devtools-opened'` \| `'screenshot-attempt'` \| `'copy-paste-attempt'` \| `'multiple-faces'` \| `'no-face'` |
 | `timestamp` | `Date` | Precise date and time when the violation occurred |
 | `snapshotUrl` | `String` | Cloudinary storage URL for the webcam snapshot captured during event |
+| `metadata` | `Mixed` | Contextual diagnostic details (e.g., face count, key codes) |
 | `createdAt` | `Date` | Creation timestamp |
 
 ---
