@@ -34,6 +34,7 @@ module.exports = ({ config }) => ({
         cameraPermission: 'ExamSphere requires camera access for automated proctoring verification during examinations.',
       },
     ],
+    'expo-sharing',
   ],
   extra: {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:5000/api',

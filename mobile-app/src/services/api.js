@@ -347,4 +347,92 @@ export const submitFinalExam = async (submissionId, answersData) => {
   }
 };
 
+export const MOCK_LEADERBOARDS = {
+  exam_101: [
+    {
+      rank: 1,
+      candidateId: 'cand_1',
+      candidateName: 'Sophia Chen',
+      avatar: 'SC',
+      score: 98,
+      totalMarks: 100,
+      accuracy: '98%',
+      timeTakenMinutes: 38,
+      submittedAt: '12 mins ago',
+      isCurrentUser: false,
+    },
+    {
+      rank: 2,
+      candidateId: 'cand_2',
+      candidateName: 'Marcus Vance',
+      avatar: 'MV',
+      score: 92,
+      totalMarks: 100,
+      accuracy: '92%',
+      timeTakenMinutes: 44,
+      submittedAt: '25 mins ago',
+      isCurrentUser: false,
+    },
+    {
+      rank: 3,
+      candidateId: 'cand_3',
+      candidateName: 'Alex Student',
+      avatar: 'AS',
+      score: 85,
+      totalMarks: 100,
+      accuracy: '85%',
+      timeTakenMinutes: 49,
+      submittedAt: 'Just now',
+      isCurrentUser: true,
+    },
+    {
+      rank: 4,
+      candidateId: 'cand_4',
+      candidateName: 'Priya Sharma',
+      avatar: 'PS',
+      score: 82,
+      totalMarks: 100,
+      accuracy: '82%',
+      timeTakenMinutes: 52,
+      submittedAt: '1 hour ago',
+      isCurrentUser: false,
+    },
+    {
+      rank: 5,
+      candidateId: 'cand_5',
+      candidateName: 'David Kim',
+      avatar: 'DK',
+      score: 78,
+      totalMarks: 100,
+      accuracy: '78%',
+      timeTakenMinutes: 55,
+      submittedAt: '2 hours ago',
+      isCurrentUser: false,
+    },
+    {
+      rank: 6,
+      candidateId: 'cand_6',
+      candidateName: 'Elena Rostova',
+      avatar: 'ER',
+      score: 74,
+      totalMarks: 100,
+      accuracy: '74%',
+      timeTakenMinutes: 58,
+      submittedAt: '3 hours ago',
+      isCurrentUser: false,
+    },
+  ],
+};
+
+export const fetchLeaderboard = async (examId) => {
+  try {
+    const res = await api.get(`/results/leaderboard/${examId || 'exam_101'}`);
+    return res.data?.data || res.data;
+  } catch (error) {
+    console.log(`[API] /results/leaderboard/${examId} unreachable, using mock leaderboard data.`);
+    return MOCK_LEADERBOARDS[examId] || MOCK_LEADERBOARDS['exam_101'];
+  }
+};
+
 export default api;
+

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,7 +7,10 @@ import {
   SafeAreaView,
   ScrollView,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { downloadAndShareCertificate } from '../services/certificateService';
 
 export default function ResultsScreen({ route, navigation }) {
   const params = route.params || {};
@@ -16,7 +19,37 @@ export default function ResultsScreen({ route, navigation }) {
   const violationsCount = params.violationsCount ?? 0;
   const autoSubmitted = params.autoSubmitted ?? false;
   const autoSubmitReason = params.autoSubmitReason;
+  const examId = params.examId || 'exam_101';
+  const examTitle = params.examTitle || 'Full-Stack MERN Architecture Assessment';
+  const candidateName = params.candidateName || 'Alex Student';
   const isPassed = score >= 50 && violationsCount < 3;
+
+  const [isDownloadingCert, setIsDownloadingCert] = useState(false);
+
+  const handleDownloadCertificate = async () => {
+    try {
+      setIsDownloadingCert(true);
+      const res = await downloadAndShareCertificate({
+        candidateName,
+        examTitle,
+        score,
+        totalMarks,
+        percentage: `${Math.round((score / totalMarks) * 100)}%`,
+        grade: score >= 80 ? 'Grade A - Distinction' : 'Grade B - Credit',
+        issueDate: new Date().toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+      });
+
+      if (!res.success && res.error) {
+        Alert.alert('Notice', 'Unable to generate certificate PDF.');
+      }
+    } finally {
+      setIsDownloadingCert(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -109,7 +142,38 @@ export default function ResultsScreen({ route, navigation }) {
           </View>
         </View>
 
-        {/* Actions */}
+        {/* Phase 3: Certificate Download & Leaderboard Actions */}
+        {isPassed && (
+          <TouchableOpacity
+            style={styles.certActionBtn}
+            activeOpacity={0.8}
+            onPress={handleDownloadCertificate}
+            disabled={isDownloadingCert}
+          >
+            {isDownloadingCert ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.certActionText}>🎓 Download Official Certificate (PDF)</Text>
+            )}
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={styles.leaderboardBtn}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.navigate('Leaderboard', {
+              examId,
+              examTitle,
+              score,
+              totalMarks,
+            })
+          }
+        >
+          <Text style={styles.leaderboardBtnText}>🏆 View Live Leaderboard Rankings</Text>
+        </TouchableOpacity>
+
+        {/* Navigation Actions */}
         <TouchableOpacity
           style={styles.primaryActionBtn}
           activeOpacity={0.8}
@@ -272,9 +336,42 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  certActionBtn: {
+    width: '100%',
+    backgroundColor: '#0D9488',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#0D9488',
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  certActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  leaderboardBtn: {
+    width: '100%',
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+    paddingVertical: 13,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  leaderboardBtnText: {
+    color: '#4338CA',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   primaryActionBtn: {
     width: '100%',
-    backgroundColor: '#2563EB',
+    backgroundColor: '#4F46E5',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
