@@ -73,8 +73,10 @@ All REST endpoints are prefixed with `/api` and return standardized JSON respons
 
 
 ### 9. Organizations (`/api/orgs`)
+- `GET /api/orgs/settings` - Fetch settings (branding, violation thresholds, enabled features) for authenticated user's organization
+- `PUT /api/orgs/settings` - Update settings for authenticated user's organization
+- `GET /api/orgs/:id` - Fetch organization details and settings (enforced by multi-tenant organizationId scope)
 - `POST /api/orgs` - Create a new organization profile
-- `GET /api/orgs/:id` - Fetch organization details and settings
 - `PUT /api/orgs/:id` - Update organization profile and member policies
 
 ### 10. Platform Administration (`/api/admin`) *(Admin Role Required)*
@@ -83,4 +85,6 @@ All REST endpoints are prefixed with `/api` and return standardized JSON respons
 - `PATCH /api/admin/users/:id/role` - Update a user's role (`student`, `teacher`, `admin`)
 - `GET /api/admin/exams` - List all exams across organizations with author details
 - `GET /api/admin/violations` - List all flagged submissions with incident logs and candidate metadata
+- `GET /api/admin/reports/summary` - Aggregate usage analytics and KPIs (exams, submissions, users, violations) platform-wide or per organization with optional CSV export (`?format=csv`)
+
 

@@ -12,8 +12,10 @@ Represents an academic institution, school, or department hosting exams on the p
 | `_id` | `ObjectId` | Primary key |
 | `name` | `String` | Organization / Institution name |
 | `plan` | `String` | Service tier (e.g., `'standard'`, `'institutional'`, `'enterprise'`) |
+| `settings` | `Object` | Multi-tenant settings: `{ defaultViolationThreshold: Number, branding: { logoUrl, primaryColor, tagline }, enabledFeatures: { codingQuestions, webcamProctoring, liveLeaderboard, certificateGeneration } }` |
 | `createdAt` | `Date` | Timestamp of organization creation |
 | `updatedAt` | `Date` | Timestamp of last modification |
+
 
 ---
 

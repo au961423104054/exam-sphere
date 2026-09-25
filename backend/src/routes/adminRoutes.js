@@ -19,4 +19,8 @@ router.get('/exams', adminController.getExams);
 // Violation logs & flagged sessions
 router.get('/violations', adminController.getViolations);
 
+// Admin reports and statistics with CSV export support
+router.get('/reports/summary', adminController.getReportsSummary);
+
 module.exports = router;
+
