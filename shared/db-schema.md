@@ -49,8 +49,12 @@ Represents an assessment with time bounds, structure, and configuration rules.
 | `endTime` | `Date` | Exam availability cutoff date and time |
 | `negativeMarking`| `Boolean` | Flag indicating if incorrect answers deduct marks |
 | `randomizeOrder` | `Boolean` | Flag indicating whether question order is randomized per student |
+| `totalMarks` | `Number` | Maximum aggregate points possible (default: `100`) |
+| `passingMarks` | `Number` | Minimum points required to pass and earn certificate (default: `50`) |
+| `reminderSent` | `Boolean` | Flag indicating if 15-minute start reminder was dispatched |
 | `createdAt` | `Date` | Creation timestamp |
 | `updatedAt` | `Date` | Last modified timestamp |
+
 
 ---
 
