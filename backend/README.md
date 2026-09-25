@@ -83,3 +83,5 @@ Once the server is running, verify its health status:
 | :--- | :--- | :--- |
 | `start` | `node src/server.js` | Runs the server in production mode using Node.js |
 | `dev` | `nodemon src/server.js` | Runs the server in development mode with automatic reload |
+| `seed:admin` | `node scripts/seedAdmin.js` | Seeds initial administrator account using ADMIN_EMAIL and ADMIN_PASSWORD |
+
