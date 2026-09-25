@@ -16,6 +16,7 @@ const proctorRoutes = require('./routes/proctorRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const resultsRoutes = require('./routes/resultsRoutes');
+const orgRoutes = require('./routes/orgRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -48,6 +49,7 @@ app.use('/api/proctor', proctorRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/results', resultsRoutes);
+app.use('/api/orgs', orgRoutes);
 
 // 404 Handler for undefined API routes
 app.use((req, res) => {
