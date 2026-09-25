@@ -54,6 +54,14 @@ const examSchema = new mongoose.Schema(
     reminderSent: {
       type: Boolean,
       default: false
+    },
+    totalMarks: {
+      type: Number,
+      default: 100
+    },
+    passingMarks: {
+      type: Number,
+      default: 50
     }
   },
   {

@@ -1,3 +1,4 @@
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -6,6 +7,7 @@ require('dotenv').config();
 
 const connectDB = require('./config/db');
 const { startExamReminderJob } = require('./jobs/examReminderJob');
+const { initSocket } = require('./services/socketService');
 
 // Import Route Handlers
 const authRoutes = require('./routes/authRoutes');
@@ -13,12 +15,17 @@ const submissionRoutes = require('./routes/submissionRoutes');
 const proctorRoutes = require('./routes/proctorRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const resultsRoutes = require('./routes/resultsRoutes');
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.io Real-Time Proctoring & Leaderboards
+initSocket(server);
 
 // Connect to MongoDB Atlas
 connectDB().then(() => {
-  // Start background cron jobs after DB connection is established
+  // Start background cron jobs
   startExamReminderJob();
 });
 
@@ -40,6 +47,7 @@ app.use('/api/submissions', submissionRoutes);
 app.use('/api/proctor', proctorRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/results', resultsRoutes);
 
 // 404 Handler for undefined API routes
 app.use((req, res) => {
@@ -51,8 +59,8 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 ExamSphere Server running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 ExamSphere Server & WebSocket Engine running on port ${PORT}`);
 });
 
-module.exports = app;
+module.exports = { app, server };

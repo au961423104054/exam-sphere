@@ -61,7 +61,9 @@ All REST endpoints are prefixed with `/api` and return standardized JSON respons
 ### 7. Results & Analytics (`/api/results`)
 - `GET /api/results/exam/:examId` - Get aggregate exam results and statistics (Teacher/Admin)
 - `GET /api/results/submission/:submissionId` - Get detailed score card and answer breakdown
-- `GET /api/results/leaderboard/:examId` - Fetch ranked leaderboard for completed exam
+- `GET /api/results/leaderboard/:examId` - Fetch ranked leaderboard for completed exam with real-time Socket.io broadcast
+- `GET /api/results/:id/certificate` - Download PDF certificate of achievement for passing submissions
+
 
 ### 8. Notifications (`/api/notifications`)
 - `GET /api/notifications` - Retrieve in-app notifications for authenticated user (paginated with total & unreadCount)
