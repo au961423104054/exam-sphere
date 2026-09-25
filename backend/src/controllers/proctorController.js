@@ -116,7 +116,83 @@ const logViolation = async (req, res) => {
   }
 };
 
+const cloudinaryService = require('../services/cloudinaryService');
+
+/**
+ * Upload webcam snapshot image and link to ProctorLog
+ * POST /api/proctor/snapshot
+ */
+const uploadSnapshot = async (req, res) => {
+  try {
+    const { submissionId, logId, type } = req.body;
+    let fileInput = null;
+
+    if (req.file && req.file.buffer) {
+      fileInput = req.file.buffer;
+    } else if (req.body.snapshot) {
+      fileInput = req.body.snapshot;
+    } else if (req.body.image) {
+      fileInput = req.body.image;
+    }
+
+    if (!fileInput) {
+      return res.status(400).json({
+        success: false,
+        message: 'No snapshot image provided. Submit via multipart "snapshot" field or base64 "snapshot" body string.'
+      });
+    }
+
+    if (!submissionId && !logId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either submissionId or logId must be provided to associate the webcam snapshot'
+      });
+    }
+
+    const uploadResult = await cloudinaryService.uploadSnapshot(fileInput, {
+      folder: 'examsphere/proctoring/snapshots'
+    });
+
+    let targetLog = null;
+
+    if (logId) {
+      targetLog = await ProctorLog.findById(logId);
+      if (targetLog) {
+        targetLog.snapshotUrl = uploadResult.url;
+        await targetLog.save();
+      }
+    } else if (submissionId) {
+      // Create new incident log linked to this snapshot
+      targetLog = await ProctorLog.create({
+        submissionId,
+        type: type && VALID_VIOLATIONS.includes(type) ? type : 'screenshot-attempt',
+        timestamp: new Date(),
+        snapshotUrl: uploadResult.url
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Snapshot uploaded and linked successfully',
+      data: {
+        snapshotUrl: uploadResult.url,
+        publicId: uploadResult.publicId,
+        logId: targetLog ? targetLog._id : null,
+        submissionId: submissionId || targetLog?.submissionId
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to upload webcam snapshot',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   logViolation,
+  uploadSnapshot,
   VALID_VIOLATIONS
 };
+
