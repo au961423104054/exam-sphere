@@ -4,6 +4,40 @@ const Exam = require('../models/Exam');
 const Submission = require('../models/Submission');
 const ProctorLog = require('../models/ProctorLog');
 
+const getOverview = async (req, res) => {
+  try {
+    const [totalUsers, totalExams, activeExams, totalSubmissions, totalViolations] = await Promise.all([
+      User.countDocuments(),
+      Exam.countDocuments(),
+      Exam.countDocuments({
+        $or: [
+          { endTime: null },
+          { endTime: { $gte: new Date() } }
+        ]
+      }),
+      Submission.countDocuments(),
+      Submission.countDocuments({ $or: [{ status: 'flagged-for-review' }, { violationCount: { $gt: 0 } }] })
+    ]);
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        totalExams,
+        activeExams,
+        totalSubmissions,
+        totalViolations,
+        integrityHealth: totalViolations === 0 ? '100%' : 'Nominal'
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to load admin overview',
+      error: error.message
+    });
+  }
+};
+
 /**
  * List all organizations
  * GET /api/admin/organizations
@@ -26,17 +60,13 @@ const getOrganizations = async (req, res) => {
 };
 
 /**
- * List all users across the platform (multi-tenant organizationId filter supported)
+ * List all users across the platform
  * GET /api/admin/users
  */
 const getUsers = async (req, res) => {
   try {
-    const { role, search, organizationId } = req.query;
+    const { role, search } = req.query;
     const filter = {};
-
-    if (organizationId) {
-      filter.organizationId = organizationId;
-    }
 
     if (role) {
       filter.role = role;
@@ -51,7 +81,6 @@ const getUsers = async (req, res) => {
 
     const users = await User.find(filter)
       .select('-passwordHash')
-      .populate('organizationId', 'name plan settings')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -69,20 +98,13 @@ const getUsers = async (req, res) => {
 };
 
 /**
- * List all exams across organizations (scoped by organizationId if provided)
+ * List all exams across the platform
  * GET /api/admin/exams
  */
 const getExams = async (req, res) => {
   try {
-    const { organizationId } = req.query;
-    const filter = {};
-    if (organizationId) {
-      filter.organizationId = organizationId;
-    }
-
-    const exams = await Exam.find(filter)
+    const exams = await Exam.find()
       .populate('createdBy', 'name email role')
-      .populate('organizationId', 'name plan settings')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -105,25 +127,15 @@ const getExams = async (req, res) => {
  */
 const getViolations = async (req, res) => {
   try {
-    const { organizationId } = req.query;
-
-    // Filter exams by organizationId if requested
-    let examFilter = {};
-    if (organizationId) {
-      const exams = await Exam.find({ organizationId }).select('_id');
-      examFilter = { examId: { $in: exams.map((e) => e._id) } };
-    }
-
+    // Fetch submissions that have violations or are flagged for review
     const flaggedSubmissions = await Submission.find({
-      $and: [
-        examFilter,
-        { $or: [{ status: 'flagged-for-review' }, { violationCount: { $gt: 0 } }] }
-      ]
+      $or: [{ status: 'flagged-for-review' }, { violationCount: { $gt: 0 } }]
     })
-      .populate('studentId', 'name email organizationId')
-      .populate('examId', 'title createdBy organizationId')
+      .populate('studentId', 'name email')
+      .populate('examId', 'title createdBy')
       .sort({ violationCount: -1, updatedAt: -1 });
 
+    // Fetch corresponding proctor logs for these submissions
     const submissionIds = flaggedSubmissions.map((s) => s._id);
     const logs = await ProctorLog.find({ submissionId: { $in: submissionIds } }).sort({ timestamp: -1 });
 
@@ -194,8 +206,7 @@ const updateUserRole = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role,
-        organizationId: user.organizationId
+        role: user.role
       }
     });
   } catch (error) {
@@ -208,108 +219,75 @@ const updateUserRole = async (req, res) => {
 };
 
 /**
- * Admin Reporting Summary (Platform-wide or per Organization) with CSV Export
- * GET /api/admin/reports/summary
+ * Update violation status (e.g., Dismissed, Confirmed Cheating)
+ * PATCH /api/admin/violations/:id/status
  */
-const getReportsSummary = async (req, res) => {
+const updateViolationStatus = async (req, res) => {
   try {
-    const { organizationId, format } = req.query;
+    const { id } = req.params;
+    const { status } = req.body;
 
-    const userFilter = organizationId ? { organizationId } : {};
-    const examFilter = organizationId ? { organizationId } : {};
-
-    let submissionFilter = {};
-    if (organizationId) {
-      const orgExams = await Exam.find({ organizationId }).select('_id');
-      submissionFilter = { examId: { $in: orgExams.map((e) => e._id) } };
+    const submission = await Submission.findById(id);
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: 'Submission not found'
+      });
     }
 
-    const [
-      totalOrgs,
-      totalExams,
-      totalSubmissions,
-      flaggedSubmissions,
-      studentsCount,
-      teachersCount,
-      adminsCount,
-      allSubmissions,
-      organizations
-    ] = await Promise.all([
-      Organization.countDocuments(),
-      Exam.countDocuments(examFilter),
-      Submission.countDocuments(submissionFilter),
-      Submission.countDocuments({ ...submissionFilter, status: 'flagged-for-review' }),
-      User.countDocuments({ ...userFilter, role: 'student' }),
-      User.countDocuments({ ...userFilter, role: 'teacher' }),
-      User.countDocuments({ ...userFilter, role: 'admin' }),
-      Submission.find(submissionFilter).select('score violationCount'),
-      Organization.find().select('name plan')
-    ]);
-
-    const totalActiveUsers = studentsCount + teachersCount + adminsCount;
-    const totalScore = allSubmissions.reduce((acc, s) => acc + (s.score || 0), 0);
-    const averageScore = allSubmissions.length > 0 ? Number((totalScore / allSubmissions.length).toFixed(2)) : 0;
-    const totalViolations = allSubmissions.reduce((acc, s) => acc + (s.violationCount || 0), 0);
-
-    const summaryData = {
-      scope: organizationId ? 'organization' : 'platform-wide',
-      organizationId: organizationId || null,
-      totalOrganizations: totalOrgs,
-      totalExams,
-      totalSubmissions,
-      flaggedSubmissions,
-      totalActiveUsers,
-      userBreakdown: {
-        students: studentsCount,
-        teachers: teachersCount,
-        admins: adminsCount
-      },
-      averageScore,
-      totalViolations
-    };
-
-    // CSV Export option
-    if (format === 'csv') {
-      const csvRows = [
-        'Metric,Value',
-        `Scope,${summaryData.scope}`,
-        `OrganizationId,${summaryData.organizationId || 'All'}`,
-        `Total Organizations,${summaryData.totalOrganizations}`,
-        `Total Exams,${summaryData.totalExams}`,
-        `Total Submissions,${summaryData.totalSubmissions}`,
-        `Flagged Submissions,${summaryData.flaggedSubmissions}`,
-        `Total Active Users,${summaryData.totalActiveUsers}`,
-        `Student Users,${summaryData.userBreakdown.students}`,
-        `Teacher Users,${summaryData.userBreakdown.teachers}`,
-        `Admin Users,${summaryData.userBreakdown.admins}`,
-        `Average Score,${summaryData.averageScore}`,
-        `Total Proctoring Violations,${summaryData.totalViolations}`
-      ];
-
-      const csvContent = csvRows.join('\n');
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename="examsphere_admin_summary_report.csv"');
-      return res.status(200).send(csvContent);
+    if (status) {
+      submission.status = status;
+      await submission.save();
     }
 
     return res.status(200).json({
       success: true,
-      data: summaryData
+      message: `Violation status updated to "${status}"`,
+      data: submission
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Failed to generate admin reports summary',
+      message: 'Failed to update violation status',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Delete a user account
+ * DELETE /api/admin/users/:id
+ */
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (id === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete your own admin account'
+      });
+    }
+    await User.findByIdAndDelete(id);
+    return res.status(200).json({
+      success: true,
+      message: 'User account removed successfully'
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete user',
       error: error.message
     });
   }
 };
 
 module.exports = {
+  getOverview,
   getOrganizations,
   getUsers,
   getExams,
   getViolations,
   updateUserRole,
-  getReportsSummary
+  updateViolationStatus,
+  deleteUser
 };

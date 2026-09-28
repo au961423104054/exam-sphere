@@ -1,9 +1,7 @@
 const Notification = require('../models/Notification');
+const User = require('../models/User');
+const { success, fail } = require('../utils/http');
 
-/**
- * List all notifications for authenticated user
- * GET /api/notifications
- */
 const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -12,10 +10,7 @@ const getNotifications = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const [notifications, total, unreadCount] = await Promise.all([
-      Notification.find({ userId })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
+      Notification.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit),
       Notification.countDocuments({ userId }),
       Notification.countDocuments({ userId, read: false })
     ]);
@@ -28,77 +23,48 @@ const getNotifications = async (req, res) => {
       data: notifications
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve notifications',
-      error: error.message
-    });
+    return fail(res, 'Failed to retrieve notifications', 500, { error: error.message });
   }
 };
 
-/**
- * Mark a single notification as read
- * PATCH /api/notifications/:id/read
- */
 const markAsRead = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
-
-    const notification = await Notification.findOne({ _id: id, userId });
-    if (!notification) {
-      return res.status(404).json({
-        success: false,
-        message: 'Notification not found'
-      });
-    }
-
+    const notification = await Notification.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!notification) return fail(res, 'Notification not found', 404);
     notification.read = true;
     await notification.save();
-
-    return res.status(200).json({
-      success: true,
-      message: 'Notification marked as read',
-      data: notification
-    });
+    return success(res, notification, 'Notification marked as read');
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to update notification',
-      error: error.message
-    });
+    return fail(res, 'Failed to update notification', 500, { error: error.message });
   }
 };
 
-/**
- * Mark all unread notifications as read for authenticated user
- * PATCH /api/notifications/read-all
- */
 const markAllAsRead = async (req, res) => {
   try {
-    const userId = req.user.id;
-
-    const result = await Notification.updateMany(
-      { userId, read: false },
-      { $set: { read: true } }
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: `Marked ${result.modifiedCount} notifications as read`,
-      modifiedCount: result.modifiedCount
-    });
+    const result = await Notification.updateMany({ userId: req.user.id, read: false }, { $set: { read: true } });
+    return success(res, { modifiedCount: result.modifiedCount }, `Marked ${result.modifiedCount} notifications as read`);
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to mark notifications as read',
-      error: error.message
-    });
+    return fail(res, 'Failed to mark notifications as read', 500, { error: error.message });
+  }
+};
+
+const registerFcmToken = async (req, res) => {
+  try {
+    const token = req.body.token || req.body.fcmToken;
+    if (!token) return fail(res, 'token is required', 400);
+    const user = await User.findById(req.user.id);
+    if (!user) return fail(res, 'User not found', 404);
+    user.fcmToken = token;
+    await user.save();
+    return success(res, { registered: true }, 'FCM token registered');
+  } catch (error) {
+    return fail(res, 'Failed to register FCM token', 500, { error: error.message });
   }
 };
 
 module.exports = {
   getNotifications,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  registerFcmToken
 };

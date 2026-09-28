@@ -16,10 +16,10 @@ const examSchema = new mongoose.Schema(
       required: [true, 'Exam title is required'],
       trim: true
     },
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organization',
-      default: null
+    slug: {
+      type: String,
+      trim: true,
+      index: true
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -62,11 +62,49 @@ const examSchema = new mongoose.Schema(
     passingMarks: {
       type: Number,
       default: 50
+    },
+    allowedIpRange: {
+      type: String,
+      default: ''
+    },
+    requireIdentityVerification: {
+      type: Boolean,
+      default: true
+    },
+    snapshotIntervalSeconds: {
+      type: Number,
+      default: 45,
+      min: 10,
+      max: 300
+    },
+    enableMicrophoneMonitoring: {
+      type: Boolean,
+      default: false
+    },
+    questionDistribution: {
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      totalCount: {
+        type: Number,
+        default: 0
+      },
+      byType: {
+        coding: { type: Number, default: 0 },
+        mcq: { type: Number, default: 0 },
+        tf: { type: Number, default: 0 },
+        subjective: { type: Number, default: 0 }
+      }
     }
   },
   {
     timestamps: true
   }
 );
+
+// Indexes for query performance
+examSchema.index({ createdBy: 1 });
+examSchema.index({ startTime: 1, endTime: 1 });
 
 module.exports = mongoose.model('Exam', examSchema);

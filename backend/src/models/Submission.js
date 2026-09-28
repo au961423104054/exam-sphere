@@ -66,6 +66,12 @@ const submissionSchema = new mongoose.Schema(
       type: [answerSchema],
       default: []
     },
+    assignedQuestions: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Question'
+      }
+    ],
     score: {
       type: Number,
       default: 0
@@ -87,11 +93,37 @@ const submissionSchema = new mongoose.Schema(
     submittedAt: {
       type: Date,
       default: null
+    },
+    verifiedAt: {
+      type: Date,
+      default: null
+    },
+    verificationSnapshotUrl: {
+      type: String,
+      default: null
+    },
+    candidateDetails: {
+      name: { type: String, default: '' },
+      email: { type: String, default: '' },
+      collegeId: { type: String, default: '' },
+      collegeName: { type: String, default: '' },
+      collegeIdPhotoUrl: { type: String, default: null },
+      facePhotoUrl: { type: String, default: null }
+    },
+    identityStatus: {
+      type: String,
+      enum: ['pending', 'verified', 'bypassed', 'failed'],
+      default: 'pending'
     }
   },
   {
     timestamps: true
   }
 );
+
+// Indexes
+submissionSchema.index({ examId: 1, studentId: 1 });
+submissionSchema.index({ studentId: 1 });
+submissionSchema.index({ examId: 1, status: 1 });
 
 module.exports = mongoose.model('Submission', submissionSchema);

@@ -46,7 +46,7 @@ const generateCertificatePDF = ({ submission, exam, student }) => {
       doc.font('Helvetica-Bold')
         .fontSize(28)
         .fillColor('#1F2937')
-        .text('CERTIFICATE OF ACHIEVEMENT', 0, 95, { align: 'center', characterSpacing: 1 });
+        .text('OFFICIAL ASSESSMENT SCORECARD', 0, 95, { align: 'center', characterSpacing: 1 });
 
       // Horizontal Divider
       doc.moveTo(width / 2 - 120, 135)

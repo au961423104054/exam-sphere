@@ -30,6 +30,16 @@ const questionSchema = new mongoose.Schema(
       enum: ['mcq', 'tf', 'subjective', 'coding'],
       required: [true, 'Question type is required']
     },
+    title: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    description: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     text: {
       type: String,
       required: [true, 'Question text/prompt is required'],
@@ -84,5 +94,8 @@ const questionSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+// Indexes
+questionSchema.index({ examId: 1 });
 
 module.exports = mongoose.model('Question', questionSchema);

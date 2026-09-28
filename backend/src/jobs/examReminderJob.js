@@ -1,4 +1,5 @@
 const cron = require('node-cron');
+const mongoose = require('mongoose');
 const Exam = require('../models/Exam');
 const User = require('../models/User');
 const { notifyExamStartingSoon } = require('../services/notificationService');
@@ -8,6 +9,10 @@ const { notifyExamStartingSoon } = require('../services/notificationService');
  */
 const checkUpcomingExams = async () => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return 0;
+    }
+
     const now = new Date();
     const fifteenMinutesFromNow = new Date(now.getTime() + 15 * 60 * 1000);
 
@@ -22,12 +27,8 @@ const checkUpcomingExams = async () => {
     console.log(`⏰ [ExamReminderJob] Found ${upcomingExams.length} upcoming exam(s) starting in next 15 minutes.`);
 
     for (const exam of upcomingExams) {
-      // Find students associated with this organization or platform students
-      const filter = { role: 'student' };
-      if (exam.organizationId) {
-        filter.organizationId = exam.organizationId;
-      }
-      const students = await User.find(filter).select('_id');
+      // Find all registered students for reminder
+      const students = await User.find({ role: 'student' }).select('_id');
       const studentIds = students.map((s) => s._id);
 
       if (studentIds.length > 0) {
