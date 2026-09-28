@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,11 +13,17 @@ import {
   Platform,
 } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
-import { logProctorViolation, submitFinalExam } from '../services/api';
+import {
+  logProctorViolation,
+  submitFinalExam,
+  startExamSubmission,
+  saveQuestionAnswer,
+} from '../services/api';
 import { saveExamProgress, getExamProgress, clearExamProgress } from '../utils/offlineStorage';
 import { formatDuration } from '../utils/formatters';
 import CodingQuestionView from '../components/CodingQuestionView';
 import MobileCameraFeed from '../components/MobileCameraFeed';
+import MobileSystemCheckModal from '../components/MobileSystemCheckModal';
 
 export default function ExamTakingScreen({ route, navigation }) {
   const exam = route.params?.exam || {
@@ -65,6 +71,7 @@ export default function ExamTakingScreen({ route, navigation }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [codingAnswers, setCodingAnswers] = useState({});
+  const [submissionId, setSubmissionId] = useState(null);
   const [secondsRemaining, setSecondsRemaining] = useState(
     (exam.durationMinutes || exam.duration || 60) * 60
   );
@@ -73,9 +80,30 @@ export default function ExamTakingScreen({ route, navigation }) {
   const [lastViolationMsg, setLastViolationMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isGateVerified, setIsGateVerified] = useState(false);
+  const [verificationSnapshotUrl, setVerificationSnapshotUrl] = useState('');
 
   const violationThreshold = exam.violationThreshold || 3;
   const appState = useRef(AppState.currentState);
+
+  // Complete pre-exam admission gate & launch submission
+  const handleGateComplete = async ({ verificationSnapshotUrl: snapshotUrl }) => {
+    setVerificationSnapshotUrl(snapshotUrl || '');
+    try {
+      const res = await startExamSubmission(
+        exam.id || exam._id || 'exam_101',
+        snapshotUrl || ''
+      );
+      if (res?.submissionId || res?.id) {
+        setSubmissionId(res.submissionId || res.id);
+      }
+      setIsGateVerified(true);
+    } catch (err) {
+      console.warn('Failed to start mobile submission attempt:', err);
+      setSubmissionId(`sub_demo_${Date.now()}`);
+      setIsGateVerified(true);
+    }
+  };
 
   /* ==============================================================================
    * 1. Screen Capture & Recording Prevention (expo-screen-capture)
@@ -159,7 +187,7 @@ export default function ExamTakingScreen({ route, navigation }) {
 
     // Asynchronously log violation incident to backend contract endpoint
     await logProctorViolation({
-      submissionId: 'sub_' + (exam.id || '101'),
+      submissionId: submissionId || ('sub_' + (exam.id || '101')),
       examId: exam.id || exam._id,
       violationType,
       details: description,
@@ -174,7 +202,7 @@ export default function ExamTakingScreen({ route, navigation }) {
   };
 
   /* ==============================================================================
-   * 4. Offline State Recovery & Timer
+   * 4. Offline State Recovery & Timer (Starts only after admission gate passes)
    * ============================================================================== */
   useEffect(() => {
     // Attempt offline recovery
@@ -187,6 +215,8 @@ export default function ExamTakingScreen({ route, navigation }) {
       }
     };
     restoreOfflineData();
+
+    if (!isGateVerified) return;
 
     // Timer Interval
     const timer = setInterval(() => {
@@ -201,7 +231,7 @@ export default function ExamTakingScreen({ route, navigation }) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isGateVerified]);
 
   // Save progress on answer changes
   useEffect(() => {
@@ -221,18 +251,41 @@ export default function ExamTakingScreen({ route, navigation }) {
       ...prev,
       [qId]: optionIdx,
     }));
+
+    if (submissionId) {
+      saveQuestionAnswer(submissionId, {
+        questionId: qId,
+        selectedOption: optionIdx,
+      }).catch((e) => console.warn('Failed to auto-save answer:', e.message));
+    }
   };
 
-  const handleUpdateCode = (qId, newCode) => {
-    setCodingAnswers((prev) => ({
-      ...prev,
-      [qId]: newCode,
-    }));
-  };
+  const handleUpdateCode = useCallback((qId, newCode) => {
+    setCodingAnswers((prev) => {
+      if (prev[qId] === newCode) return prev;
+      return {
+        ...prev,
+        [qId]: newCode,
+      };
+    });
+  }, []);
 
   /* ==============================================================================
    * 6. Submission Handlers
    * ============================================================================== */
+  const buildAnswersPayload = () => {
+    return [
+      ...Object.entries(selectedAnswers).map(([questionId, opt]) => ({
+        questionId,
+        selectedOption: opt,
+      })),
+      ...Object.entries(codingAnswers).map(([questionId, code]) => ({
+        questionId,
+        code,
+      })),
+    ];
+  };
+
   const executeAutoSubmit = async (finalViolations, reason) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -240,8 +293,9 @@ export default function ExamTakingScreen({ route, navigation }) {
 
     await clearExamProgress(exam.id || exam._id);
 
-    const submissionResult = await submitFinalExam('sub_' + (exam.id || '101'), {
-      answers: { ...selectedAnswers, ...codingAnswers },
+    const subId = submissionId || ('sub_' + (exam.id || '101'));
+    const submissionResult = await submitFinalExam(subId, {
+      answers: buildAnswersPayload(),
       violationsCount: finalViolations,
       autoSubmitted: true,
       autoSubmitReason: reason,
@@ -263,8 +317,9 @@ export default function ExamTakingScreen({ route, navigation }) {
 
     await clearExamProgress(exam.id || exam._id);
 
-    const submissionResult = await submitFinalExam('sub_' + (exam.id || '101'), {
-      answers: { ...selectedAnswers, ...codingAnswers },
+    const subId = submissionId || ('sub_' + (exam.id || '101'));
+    const submissionResult = await submitFinalExam(subId, {
+      answers: buildAnswersPayload(),
       violationsCount: violationCount,
       autoSubmitted: false,
     });
@@ -350,6 +405,7 @@ export default function ExamTakingScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={styles.contentScroll} showsVerticalScrollIndicator={false}>
         {currentQ.type === 'coding' ? (
           <CodingQuestionView
+            key={currentQ.id}
             question={currentQ}
             code={codingAnswers[currentQ.id] || currentQ.starterCode || ''}
             onChangeCode={(val) => handleUpdateCode(currentQ.id, val)}
@@ -395,13 +451,17 @@ export default function ExamTakingScreen({ route, navigation }) {
         )}
       </ScrollView>
 
-      {/* Floating Picture-in-Picture Webcam Feed (Front Camera, 30s snapshot upload) */}
+      {/* Floating Picture-in-Picture Webcam Feed (Front Camera, session filmstrip monitoring) */}
       <View style={styles.floatingCameraWrapper}>
         <MobileCameraFeed
           examId={exam.id || exam._id || 'exam_101'}
+          submissionId={submissionId}
           candidateEmail="alex.student@examsphere.io"
-          intervalSeconds={30}
-          enabled={true}
+          intervalSeconds={exam.snapshotIntervalSeconds || 30}
+          enabled={isGateVerified}
+          onCameraObstructed={(msg) =>
+            handleSecurityBreach('camera-blocked', msg || 'Webcam feed dark or obstructed.')
+          }
         />
       </View>
 
@@ -501,6 +561,17 @@ export default function ExamTakingScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Commercial AMS-Standard Pre-Exam Diagnostic & Identity Verification Gate */}
+      {!isGateVerified && (
+        <MobileSystemCheckModal
+          visible={!isGateVerified}
+          exam={exam}
+          candidateName="Alex Student"
+          onComplete={handleGateComplete}
+          onExit={() => navigation.goBack()}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -612,8 +683,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   paletteItemCurrent: {
-    borderColor: '#2563EB',
-    backgroundColor: '#EFF6FF',
+    borderColor: '#4F46E5',
+    backgroundColor: '#EEF2FF',
   },
   paletteItemAnswered: {
     backgroundColor: '#DCFCE7',
@@ -625,7 +696,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   paletteTextCurrent: {
-    color: '#2563EB',
+    color: '#4F46E5',
   },
   paletteTextAnswered: {
     color: '#166534',
@@ -690,8 +761,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   optionCardSelected: {
-    borderColor: '#2563EB',
-    backgroundColor: '#EFF6FF',
+    borderColor: '#4F46E5',
+    backgroundColor: '#EEF2FF',
   },
   radioCircle: {
     width: 20,
@@ -704,13 +775,13 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   radioCircleSelected: {
-    borderColor: '#2563EB',
+    borderColor: '#4F46E5',
   },
   radioDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#4F46E5',
   },
   optionText: {
     flex: 1,
@@ -719,8 +790,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   optionTextSelected: {
-    color: '#1D4ED8',
-    fontWeight: '600',
+    color: '#312E81',
+    fontWeight: '700',
   },
   footerBar: {
     flexDirection: 'row',
@@ -747,7 +818,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   nextBtn: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#4F46E5',
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 8,
@@ -758,7 +829,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   submitBtn: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#10B981',
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 8,

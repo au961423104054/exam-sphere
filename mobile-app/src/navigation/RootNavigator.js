@@ -13,7 +13,7 @@ export default function RootNavigator() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#4F46E5" />
       </View>
     );
   }
@@ -21,15 +21,9 @@ export default function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {userToken ? (
-        <>
-          <Stack.Screen name="Main" component={MainStack} />
-          <Stack.Screen name="Auth" component={AuthStack} />
-        </>
+        <Stack.Screen name="Main" component={MainStack} />
       ) : (
-        <>
-          <Stack.Screen name="Auth" component={AuthStack} />
-          <Stack.Screen name="Main" component={MainStack} />
-        </>
+        <Stack.Screen name="Auth" component={AuthStack} />
       )}
     </Stack.Navigator>
   );

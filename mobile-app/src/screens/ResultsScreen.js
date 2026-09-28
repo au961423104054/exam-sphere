@@ -11,6 +11,9 @@ import {
   Alert,
 } from 'react-native';
 import { downloadAndShareCertificate } from '../services/certificateService';
+import Badge from '../components/Badge';
+import Button from '../components/Button';
+import BottomNavBar from '../components/BottomNavBar';
 
 export default function ResultsScreen({ route, navigation }) {
   const params = route.params || {};
@@ -44,7 +47,7 @@ export default function ResultsScreen({ route, navigation }) {
       });
 
       if (!res.success && res.error) {
-        Alert.alert('Notice', 'Unable to generate certificate PDF.');
+        Alert.alert('Notice', 'Unable to generate scorecard PDF.');
       }
     } finally {
       setIsDownloadingCert(false);
@@ -72,26 +75,26 @@ export default function ResultsScreen({ route, navigation }) {
             {autoSubmitted
               ? autoSubmitReason || 'Submission was finalized automatically by proctoring engine.'
               : isPassed
-              ? 'Congratulations! You have successfully passed the assessment.'
+              ? 'Congratulations! You have passed the official assessment criteria.'
               : 'Your score has been computed. Review performance metrics below.'}
           </Text>
         </View>
 
         {/* Score Card */}
         <View style={styles.card}>
-          <Text style={styles.scoreLabel}>Final Candidate Score</Text>
+          <Text style={styles.scoreLabel}>Final Assessment Score</Text>
           <View style={styles.scoreRow}>
-            <Text style={[styles.scoreValue, isPassed ? styles.textBlue : styles.textRed]}>
+            <Text style={[styles.scoreValue, isPassed ? styles.textIndigo : styles.textRed]}>
               {score}
             </Text>
             <Text style={styles.scoreTotal}> / {totalMarks}</Text>
           </View>
 
-          <View style={[styles.statusBadge, isPassed ? styles.badgePass : styles.badgeFail]}>
-            <Text style={[styles.statusBadgeText, isPassed ? styles.textPassDark : styles.textFailDark]}>
-              Result: {isPassed ? 'PASSED (Grade A)' : autoSubmitted ? 'FLAGGED / FAIL' : 'FAILED'}
-            </Text>
-          </View>
+          <Badge
+            variant={isPassed ? 'success' : 'danger'}
+            label={isPassed ? 'Status: PASSED (Grade A)' : autoSubmitted ? 'FLAGGED / AUTO-SUBMITTED' : 'Status: FAILED'}
+            style={styles.statusBadge}
+          />
         </View>
 
         {/* Proctoring Verification Summary Card */}
@@ -100,32 +103,31 @@ export default function ResultsScreen({ route, navigation }) {
 
           <View style={styles.auditRow}>
             <Text style={styles.auditLabel}>Violations Triggered</Text>
-            <View style={[styles.pill, violationsCount === 0 ? styles.pillGreen : styles.pillYellow]}>
-              <Text style={[styles.pillText, violationsCount === 0 ? styles.textPassDark : styles.textYellowDark]}>
-                {violationsCount} Incidents
-              </Text>
-            </View>
+            <Badge
+              variant={violationsCount === 0 ? 'success' : violationsCount < 3 ? 'warning' : 'danger'}
+              label={`${violationsCount} Incidents`}
+            />
           </View>
 
           <View style={styles.auditRow}>
             <Text style={styles.auditLabel}>Screen Capture Shield</Text>
-            <Text style={styles.auditValue}>Active (Enforced)</Text>
+            <Text style={styles.auditValue}>Hardware Enforced</Text>
           </View>
 
           <View style={styles.auditRow}>
-            <Text style={styles.auditLabel}>App-Switching Listener</Text>
+            <Text style={styles.auditLabel}>App-Switching Monitor</Text>
             <Text style={styles.auditValue}>Verified</Text>
           </View>
 
           <View style={[styles.auditRow, { borderBottomWidth: 0 }]}>
-            <Text style={styles.auditLabel}>Audit Status</Text>
+            <Text style={styles.auditLabel}>Integrity Status</Text>
             <Text style={[styles.auditValue, violationsCount < 3 ? styles.textGreen : styles.textRed]}>
               {violationsCount < 3 ? 'Verified Valid Session' : 'Breach Limit Exceeded'}
             </Text>
           </View>
         </View>
 
-        {/* Evaluation Engine Metadata */}
+        {/* Grading Engine Summary Card */}
         <View style={styles.card}>
           <Text style={styles.cardHeading}>Grading Engine Summary</Text>
           <View style={styles.auditRow}>
@@ -134,33 +136,29 @@ export default function ResultsScreen({ route, navigation }) {
           </View>
           <View style={styles.auditRow}>
             <Text style={styles.auditLabel}>Code Test Runner</Text>
-            <Text style={styles.auditValue}>Sandbox Executed</Text>
+            <Text style={styles.auditValue}>Automated Sandbox Executed</Text>
           </View>
           <View style={[styles.auditRow, { borderBottomWidth: 0 }]}>
             <Text style={styles.auditLabel}>Recorded In Database</Text>
-            <Text style={styles.auditValue}>MongoDB Submission Log</Text>
+            <Text style={styles.auditValue}>MongoDB Submission Audit Log</Text>
           </View>
         </View>
 
-        {/* Phase 3: Certificate Download & Leaderboard Actions */}
+        {/* Scorecard Action */}
         {isPassed && (
-          <TouchableOpacity
-            style={styles.certActionBtn}
-            activeOpacity={0.8}
+          <Button
+            title="📄 Download Official Scorecard (PDF)"
             onPress={handleDownloadCertificate}
-            disabled={isDownloadingCert}
-          >
-            {isDownloadingCert ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.certActionText}>🎓 Download Official Certificate (PDF)</Text>
-            )}
-          </TouchableOpacity>
+            loading={isDownloadingCert}
+            variant="accent"
+            size="lg"
+            style={styles.actionBtn}
+          />
         )}
 
-        <TouchableOpacity
-          style={styles.leaderboardBtn}
-          activeOpacity={0.8}
+        {/* Leaderboard CTA */}
+        <Button
+          title="🏆 View Live Leaderboard Rankings"
           onPress={() =>
             navigation.navigate('Leaderboard', {
               examId,
@@ -169,27 +167,23 @@ export default function ResultsScreen({ route, navigation }) {
               totalMarks,
             })
           }
-        >
-          <Text style={styles.leaderboardBtnText}>🏆 View Live Leaderboard Rankings</Text>
-        </TouchableOpacity>
+          variant="secondary"
+          size="lg"
+          style={styles.actionBtn}
+        />
 
-        {/* Navigation Actions */}
-        <TouchableOpacity
-          style={styles.primaryActionBtn}
-          activeOpacity={0.8}
+        {/* Return to Dashboard */}
+        <Button
+          title="Return to Examinations →"
           onPress={() => navigation.navigate('ExamList')}
-        >
-          <Text style={styles.primaryActionText}>Return to Exam Dashboard →</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryActionBtn}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('Auth', { screen: 'Login' })}
-        >
-          <Text style={styles.secondaryActionText}>Sign Out</Text>
-        </TouchableOpacity>
+          variant="primary"
+          size="lg"
+          style={styles.actionBtn}
+        />
       </ScrollView>
+
+      {/* Bottom Nav */}
+      <BottomNavBar activeScreen="ExamList" navigation={navigation} />
     </SafeAreaView>
   );
 }
@@ -201,197 +195,117 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 18,
+    paddingBottom: 28,
     alignItems: 'center',
   },
   bannerBox: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
     width: '100%',
   },
   bannerEmoji: {
-    fontSize: 44,
+    fontSize: 42,
     marginBottom: 8,
   },
   bannerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: '#0F172A',
     textAlign: 'center',
+    fontFamily: 'Inter_700Bold',
   },
   bannerSubtitle: {
     fontSize: 13,
     color: '#64748B',
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 4,
     lineHeight: 18,
     maxWidth: 320,
+    fontFamily: 'Inter_400Regular',
   },
   card: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
     alignItems: 'center',
   },
   scoreLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#64748B',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    fontFamily: 'Inter_600SemiBold',
   },
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginVertical: 10,
+    marginVertical: 8,
   },
   scoreValue: {
-    fontSize: 48,
+    fontSize: 46,
     fontWeight: '900',
+    fontFamily: 'Inter_700Bold',
   },
   scoreTotal: {
     fontSize: 20,
     fontWeight: '700',
     color: '#94A3B8',
+    fontFamily: 'Inter_600SemiBold',
   },
-  textBlue: {
-    color: '#2563EB',
+  textIndigo: {
+    color: '#4F46E5',
   },
   textRed: {
-    color: '#DC2626',
+    color: '#EF4444',
   },
   textGreen: {
-    color: '#16A34A',
+    color: '#10B981',
   },
   statusBadge: {
-    paddingHorizontal: 14,
+    marginTop: 4,
+    paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 20,
-  },
-  badgePass: {
-    backgroundColor: '#DCFCE7',
-  },
-  badgeFail: {
-    backgroundColor: '#FEE2E2',
-  },
-  statusBadgeText: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  textPassDark: {
-    color: '#15803D',
-  },
-  textFailDark: {
-    color: '#991B1B',
-  },
-  textYellowDark: {
-    color: '#92400E',
   },
   cardHeading: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1E293B',
     alignSelf: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 10,
+    fontFamily: 'Inter_700Bold',
   },
   auditRow: {
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   auditLabel: {
     fontSize: 13,
     color: '#64748B',
-    fontWeight: '500',
+    fontFamily: 'Inter_500Medium',
   },
   auditValue: {
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+    fontFamily: 'Inter_600SemiBold',
   },
-  pill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  pillGreen: {
-    backgroundColor: '#DCFCE7',
-  },
-  pillYellow: {
-    backgroundColor: '#FEF3C7',
-  },
-  pillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  certActionBtn: {
+  actionBtn: {
     width: '100%',
-    backgroundColor: '#0D9488',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
     marginBottom: 10,
-    shadowColor: '#0D9488',
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  certActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  leaderboardBtn: {
-    width: '100%',
-    backgroundColor: '#EEF2FF',
-    borderWidth: 1.5,
-    borderColor: '#C7D2FE',
-    paddingVertical: 13,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  leaderboardBtnText: {
-    color: '#4338CA',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  primaryActionBtn: {
-    width: '100%',
-    backgroundColor: '#4F46E5',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  primaryActionText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  secondaryActionBtn: {
-    width: '100%',
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  secondaryActionText: {
-    color: '#475569',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });

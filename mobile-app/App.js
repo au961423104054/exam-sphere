@@ -10,8 +10,12 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
+import {
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { AuthProvider } from './src/context/AuthContext';
-import { OrgProvider } from './src/context/OrgContext';
 import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
@@ -20,12 +24,15 @@ export default function App() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
 
   if (!fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#4F46E5" />
       </View>
     );
   }
@@ -33,12 +40,10 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <OrgProvider>
-          <NavigationContainer>
-            <StatusBar style="dark" />
-            <RootNavigator />
-          </NavigationContainer>
-        </OrgProvider>
+        <NavigationContainer>
+          <StatusBar style="dark" />
+          <RootNavigator />
+        </NavigationContainer>
       </AuthProvider>
     </SafeAreaProvider>
   );

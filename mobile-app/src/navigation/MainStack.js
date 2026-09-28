@@ -6,7 +6,7 @@ import ExamTakingScreen from '../screens/ExamTakingScreen';
 import ResultsScreen from '../screens/ResultsScreen';
 import NotificationListScreen from '../screens/NotificationListScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
-import OrgSettingsScreen from '../screens/OrgSettingsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -63,10 +63,11 @@ export default function MainStack() {
         }}
       />
       <Stack.Screen
-        name="OrgSettings"
-        component={OrgSettingsScreen}
+        name="Profile"
+        component={ProfileScreen}
         options={{
-          title: 'Institution Settings',
+          title: 'Profile & Settings',
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

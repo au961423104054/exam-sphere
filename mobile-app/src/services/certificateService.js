@@ -25,7 +25,7 @@ export const buildCertificateHtml = ({
     <html lang="en">
     <head>
       <meta charset="utf-8" />
-      <title>ExamSphere Certificate of Achievement - ${candidateName}</title>
+      <title>ExamSphere Official Scorecard - ${candidateName}</title>
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&family=Cinzel:wght@600;700&display=swap');
         
@@ -296,8 +296,8 @@ export const buildCertificateHtml = ({
           </div>
           <div class="org-name">${organizationName}</div>
 
-          <div class="cert-title">Certificate of Achievement</div>
-          <div class="subtitle">This credential certifies that</div>
+          <div class="cert-title">Official Assessment Scorecard</div>
+          <div class="subtitle">This credential validates and certifies that</div>
 
           <div class="candidate-name">${candidateName}</div>
 
@@ -341,7 +341,7 @@ export const buildCertificateHtml = ({
             <div class="id-block">
               <div class="id-label">Issue Date</div>
               <div class="id-val">${issueDate}</div>
-              <div class="id-label" style="margin-top: 6px;">Certificate ID</div>
+              <div class="id-label" style="margin-top: 6px;">Scorecard ID</div>
               <div class="id-val">${certificateId}</div>
               <div class="verify-text">Authenticity Digitally Signed</div>
             </div>
@@ -376,20 +376,20 @@ export const downloadAndShareCertificate = async (certificateData) => {
     if (isAvailable) {
       await Sharing.shareAsync(uri, {
         mimeType: 'application/pdf',
-        dialogTitle: `ExamSphere Certificate - ${certificateData.candidateName || 'Candidate'}`,
+        dialogTitle: `ExamSphere Scorecard - ${certificateData.candidateName || 'Candidate'}`,
         UTI: 'com.adobe.pdf',
       });
       return { success: true, uri, method: 'sharing' };
     } else {
       Alert.alert(
-        'Certificate Generated',
-        `Your certificate PDF has been created successfully at:\n${uri}`
+        'Scorecard Generated',
+        `Your scorecard PDF has been created successfully at:\n${uri}`
       );
       return { success: true, uri, method: 'local_file' };
     }
   } catch (error) {
-    console.warn('[Certificate Service] Generation failed:', error);
-    Alert.alert('Download Error', 'Unable to generate certificate PDF. Please try again.');
+    console.warn('[Scorecard Service] Generation failed:', error);
+    Alert.alert('Download Error', 'Unable to generate scorecard PDF. Please try again.');
     return { success: false, error };
   }
 };

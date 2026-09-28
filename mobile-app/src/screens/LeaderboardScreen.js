@@ -20,6 +20,7 @@ import {
   subscribeConnectionState,
 } from '../services/socketService';
 import { downloadAndShareCertificate } from '../services/certificateService';
+import BottomNavBar from '../components/BottomNavBar';
 
 export default function LeaderboardScreen({ route, navigation }) {
   const { user } = useAuth();
@@ -124,7 +125,7 @@ export default function LeaderboardScreen({ route, navigation }) {
       });
 
       if (!res.success && res.error) {
-        Alert.alert('Notice', 'Unable to download certificate.');
+        Alert.alert('Notice', 'Unable to download scorecard.');
       }
     } finally {
       setIsDownloadingCert(false);
@@ -247,10 +248,10 @@ export default function LeaderboardScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* Certificate Quick Card */}
+      {/* Scorecard Quick Card */}
       <View style={styles.certBanner}>
         <View style={styles.certBannerLeft}>
-          <Text style={styles.certBannerTitle}>🎓 Official Certificate Verified</Text>
+          <Text style={styles.certBannerTitle}>📄 Official Scorecard Verified</Text>
           <Text style={styles.certBannerSub}>
             Candidate: {user?.name || 'Alex Student'} • Score: {userScore}/{totalMarks}
           </Text>
@@ -360,6 +361,9 @@ export default function LeaderboardScreen({ route, navigation }) {
           }
         />
       )}
+
+      {/* Bottom Navigation */}
+      <BottomNavBar activeScreen="Leaderboard" navigation={navigation} />
     </SafeAreaView>
   );
 }

@@ -10,8 +10,24 @@ export default function AdminLogin() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('admin@examsphere.edu');
   const [password, setPassword] = useState('admin123');
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  React.useEffect(() => {
+    try {
+      const savedRemember = localStorage.getItem('examsphere_admin_remember_me');
+      const savedEmail = localStorage.getItem('examsphere_admin_saved_email');
+      if (savedRemember === 'true' && savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      } else if (savedRemember === 'false') {
+        setRememberMe(false);
+      }
+    } catch {
+      // Ignore localStorage read errors
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,6 +35,14 @@ export default function AdminLogin() {
     setErrorMessage('');
 
     try {
+      if (rememberMe) {
+        localStorage.setItem('examsphere_admin_remember_me', 'true');
+        localStorage.setItem('examsphere_admin_saved_email', email);
+      } else {
+        localStorage.setItem('examsphere_admin_remember_me', 'false');
+        localStorage.removeItem('examsphere_admin_saved_email');
+      }
+
       const res = await examSphereApi.auth.login(email, password);
       const user = res.data?.user;
 
@@ -112,6 +136,19 @@ export default function AdminLogin() {
                   required
                   className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-indigo-500"
                 />
+              </div>
+
+              <div className="flex items-center space-x-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="admin-remember-me"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500/30 cursor-pointer"
+                />
+                <label htmlFor="admin-remember-me" className="text-xs text-slate-400 select-none cursor-pointer">
+                  Remember administrative session
+                </label>
               </div>
 
               <Button

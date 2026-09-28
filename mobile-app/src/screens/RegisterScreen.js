@@ -11,19 +11,60 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { registerUser } from '../services/api';
+import Button from '../components/Button';
 
 export default function RegisterScreen({ navigation }) {
-  const [fullName, setFullName] = useState('Alex Taylor');
-  const [email, setEmail] = useState('candidate@examsphere.io');
-  const [password, setPassword] = useState('Password@123');
+  const [role, setRole] = useState('student');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const { signUp } = useAuth();
 
   const handleRegister = async () => {
-    await signUp('demo_token_' + Date.now(), { email, role: 'student', name: fullName });
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('Main');
+    if (!fullName.trim() || !email.trim() || !password) {
+      setErrorMsg('Full name, email, and password are required.');
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      const res = await registerUser({
+        name: fullName.trim(),
+        email: email.trim(),
+        password,
+        role,
+        organizationName: organizationName.trim() || 'ExamSphere University',
+      });
+
+      const token = res.data?.token || 'demo_token_' + Date.now();
+      const userData = res.data?.user || {
+        email,
+        role,
+        name: fullName,
+      };
+
+      await signUp(token, userData);
+
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('Main');
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'Registration failed. Please check inputs.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,63 +74,157 @@ export default function RegisterScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
           <View style={styles.header}>
+            <View style={styles.logoSquircle}>
+              <Text style={styles.logoSquircleText}>📝</Text>
+            </View>
             <Text style={styles.logoTitle}>Create Account</Text>
-            <Text style={styles.subtitle}>Register as a student candidate on ExamSphere</Text>
+            <Text style={styles.subtitle}>
+              Register for institutional assessments & proctored testing
+            </Text>
           </View>
 
+          {/* Form Card */}
           <View style={styles.card}>
+            {/* Role Switcher */}
+            <Text style={styles.sectionLabel}>Select Your Role</Text>
+            <View style={styles.roleGrid}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.roleCard, role === 'student' && styles.roleCardActive]}
+                onPress={() => setRole('student')}
+              >
+                <Text style={styles.roleEmoji}>👨‍🎓</Text>
+                <View>
+                  <Text style={[styles.roleTitle, role === 'student' && styles.roleTitleActive]}>
+                    Candidate
+                  </Text>
+                  <Text style={styles.roleSub}>Student Portal</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.roleCard, role === 'teacher' && styles.roleCardActive]}
+                onPress={() => setRole('teacher')}
+              >
+                <Text style={styles.roleEmoji}>👨‍🏫</Text>
+                <View>
+                  <Text style={[styles.roleTitle, role === 'teacher' && styles.roleTitleActive]}>
+                    Educator
+                  </Text>
+                  <Text style={styles.roleSub}>Teacher Studio</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {errorMsg ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorIcon}>⚠️</Text>
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              </View>
+            ) : null}
+
+            {/* Full Name */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Full name"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter email"
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Create password"
-                secureTextEntry
-              />
-            </View>
-
-            <View style={styles.roleContainer}>
-              <Text style={styles.roleLabel}>Assigned Role:</Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleBadgeText}>Student / Candidate</Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputIcon}>👤</Text>
+                <TextInput
+                  style={styles.input}
+                  value={fullName}
+                  onChangeText={(text) => {
+                    setFullName(text);
+                    setErrorMsg('');
+                  }}
+                  placeholder="e.g. Alex Rivera"
+                  placeholderTextColor="#94A3B8"
+                />
               </View>
             </View>
 
-            <TouchableOpacity style={styles.primaryButton} onPress={handleRegister}>
-              <Text style={styles.primaryButtonText}>Complete Registration</Text>
-            </TouchableOpacity>
+            {/* Email Address */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Institutional Email</Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputIcon}>✉️</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    setErrorMsg('');
+                  }}
+                  placeholder="name@university.edu"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+              </View>
+            </View>
 
-            <TouchableOpacity
-              style={styles.secondaryButton}
+            {/* Password */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password (min 6 chars)</Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputIcon}>🔒</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setErrorMsg('');
+                  }}
+                  placeholder="••••••••••••"
+                  placeholderTextColor="#94A3B8"
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeBtn}
+                >
+                  <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Institution */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Institution / University (Optional)</Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputIcon}>🏛️</Text>
+                <TextInput
+                  style={styles.input}
+                  value={organizationName}
+                  onChangeText={setOrganizationName}
+                  placeholder="e.g. MIT Dept. of EECS"
+                  placeholderTextColor="#94A3B8"
+                />
+              </View>
+            </View>
+
+            {/* Submit */}
+            <Button
+              title="Complete Registration →"
+              onPress={handleRegister}
+              loading={loading}
+              size="lg"
+              style={styles.submitBtn}
+            />
+
+            {/* Back to Sign In */}
+            <Button
+              title="Already have an account? Sign In"
               onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={styles.secondaryButtonText}>Back to Sign In</Text>
-            </TouchableOpacity>
+              variant="secondary"
+              size="md"
+              style={styles.loginBtn}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -108,97 +243,163 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: 20,
+    paddingVertical: 28,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  logoSquircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    shadowColor: '#4F46E5',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  logoSquircleText: {
+    fontSize: 28,
   },
   logoTitle: {
     fontSize: 28,
     fontWeight: '800',
     color: '#0F172A',
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748B',
-    marginTop: 6,
+    marginTop: 4,
     textAlign: 'center',
+    fontFamily: 'Inter_400Regular',
+    maxWidth: 280,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    borderRadius: 18,
+    padding: 22,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  inputGroup: {
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  roleGrid: {
+    flexDirection: 'row',
+    gap: 10,
     marginBottom: 16,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#0F172A',
-    backgroundColor: '#F8FAFC',
-  },
-  roleContainer: {
+  roleCard: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    gap: 8,
   },
-  roleLabel: {
-    fontSize: 13,
+  roleCardActive: {
+    borderColor: '#4F46E5',
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+  },
+  roleEmoji: {
+    fontSize: 20,
+  },
+  roleTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  roleTitleActive: {
+    color: '#312E81',
+    fontWeight: '800',
+  },
+  roleSub: {
+    fontSize: 10,
     color: '#64748B',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14,
+    gap: 8,
+  },
+  errorIcon: {
+    fontSize: 14,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#991B1B',
+    fontWeight: '600',
+    flex: 1,
+  },
+  inputGroup: {
+    marginBottom: 14,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 6,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    minHeight: 48,
+  },
+  inputIcon: {
+    fontSize: 14,
     marginRight: 8,
   },
-  roleBadge: {
-    backgroundColor: '#E0E7FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  roleBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#3730A3',
-  },
-  primaryButton: {
-    backgroundColor: '#2563EB',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  secondaryButtonText: {
-    color: '#1E293B',
+  input: {
+    flex: 1,
     fontSize: 14,
-    fontWeight: '600',
+    color: '#0F172A',
+    fontFamily: 'Inter_500Medium',
+  },
+  eyeBtn: {
+    padding: 6,
+  },
+  eyeIcon: {
+    fontSize: 14,
+  },
+  submitBtn: {
+    marginTop: 6,
+  },
+  loginBtn: {
+    marginTop: 10,
   },
 });

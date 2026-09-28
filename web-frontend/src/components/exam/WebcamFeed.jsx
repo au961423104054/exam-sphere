@@ -10,22 +10,37 @@ export function WebcamFeed({ proctor }) {
     errorMessage,
     snapshotCount,
     lastSnapshotTime,
+    isShutterClosed,
     startCamera,
     triggerManualSnapshot,
     intervalSeconds,
   } = proctor;
 
+  const isFeedActive = permissionStatus === 'granted' && !isShutterClosed;
+
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-72 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl overflow-hidden transition-all duration-200">
+    <div
+      className={`fixed bottom-4 right-4 z-40 w-72 bg-slate-900 border rounded-xl shadow-2xl overflow-hidden transition-all duration-200 ${
+        isShutterClosed
+          ? 'border-rose-500 shadow-rose-950/40 ring-2 ring-rose-500/50'
+          : 'border-slate-700/80 shadow-2xl'
+      }`}
+    >
       {/* Feed Header */}
       <div className="flex items-center justify-between px-3 py-2 bg-slate-950/90 border-b border-slate-800 text-xs text-slate-200 font-mono">
         <div className="flex items-center space-x-1.5">
-          {permissionStatus === 'granted' ? (
+          {isFeedActive ? (
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           ) : (
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
           )}
-          <span className="font-semibold text-slate-300">Proctor Cam</span>
+          <span
+            className={`font-semibold ${
+              isShutterClosed ? 'text-rose-400 font-bold' : 'text-slate-300'
+            }`}
+          >
+            {isShutterClosed ? 'SHUTTER CLOSED' : 'Proctor Cam'}
+          </span>
         </div>
 
         <div className="flex items-center space-x-1">
@@ -56,6 +71,17 @@ export function WebcamFeed({ proctor }) {
             }`}
           />
 
+          {/* Shutter Closed / Covered Overlay */}
+          {permissionStatus === 'granted' && isShutterClosed && (
+            <div className="absolute inset-0 bg-rose-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-3 text-center z-10 animate-in fade-in">
+              <CameraOff className="w-6 h-6 text-rose-400 mb-1 animate-pulse" />
+              <span className="text-[11px] font-bold text-white">Camera Shutter Closed</span>
+              <span className="text-[9px] text-rose-200 mt-0.5">
+                Open webcam physical slider
+              </span>
+            </div>
+          )}
+
           {/* Fallback & Permission Pending Overlay */}
           {permissionStatus !== 'granted' && (
             <div className="p-4 text-center space-y-2">
@@ -76,7 +102,7 @@ export function WebcamFeed({ proctor }) {
           )}
 
           {/* Privacy Overlay Pill */}
-          {permissionStatus === 'granted' && (
+          {isFeedActive && (
             <div className="absolute top-2 left-2 flex items-center space-x-1 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded text-[10px] text-emerald-400 font-mono">
               <Eye className="w-3 h-3" />
               <span>LIVE</span>

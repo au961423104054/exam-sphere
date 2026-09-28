@@ -5,7 +5,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   LayoutDashboard,
-  BookOpen,
   ArrowRight,
   Terminal,
   Sparkles,
@@ -44,19 +43,12 @@ const primaryFeatures = [
   },
   {
     title: 'Supervised Admin Console',
-    desc: 'Role-gated security panel with institution tenant management, searchable user RBAC elevation, and flagged violation review logs.',
+    desc: 'Role-gated security panel with platform-wide user management, searchable user RBAC elevation, and flagged violation review logs.',
     icon: ShieldCheck,
     badge: 'Role Gated',
     to: '/admin/dashboard',
     badgeVariant: 'destructive',
   },
-];
-
-const portalPortals = [
-  { path: '/student/dashboard', label: 'Student Portal', icon: BookOpen, desc: 'Candidate assessments & report cards' },
-  { path: '/teacher/dashboard', label: 'Teacher Studio', icon: LayoutDashboard, desc: 'Question authoring & course grading' },
-  { path: '/admin/dashboard', label: 'Admin Console', icon: ShieldCheck, desc: 'Institutions, RBAC, and integrity audits' },
-  { path: '/admin/login', label: 'Admin Login', icon: Lock, desc: 'Dedicated administrative authentication' },
 ];
 
 export default function Home() {
@@ -66,27 +58,27 @@ export default function Home() {
       <div className="text-center space-y-4 max-w-3xl mx-auto">
         <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Modern Design System &bull; Monaco Editor &bull; Anti-Cheat</span>
+          <span>Commercial-Grade Proctoring &bull; Identity Verification &bull; Code Runner</span>
         </div>
 
         <h1 className="font-heading font-extrabold text-4xl sm:text-5xl text-slate-900 tracking-tight leading-tight">
           Exam<span className="text-indigo-600">Sphere</span> Enterprise Assessment
         </h1>
         <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-          Full-featured MERN exam portal featuring algorithmic coding challenges, automated proctoring & anti-cheat deterrence, and a multi-tenant administration console.
+          Full-featured MERN exam portal featuring algorithmic coding challenges, automated biometric identity & system checks, continuous monitoring filmstrips, and role-based administration.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          <Link to="/exam/exam-cs101">
+          <Link to="/login">
             <Button size="lg" variant="primary" className="gap-2 shadow-md font-semibold">
-              <Code2 className="w-5 h-5" />
-              <span>Launch Proctored Exam (Demo)</span>
+              <Lock className="w-4 h-4" />
+              <span>Sign In to Portal</span>
             </Button>
           </Link>
-          <Link to="/admin/dashboard">
-            <Button size="lg" variant="outline" className="gap-2">
-              <ShieldCheck className="w-5 h-5 text-indigo-600" />
-              <span>Open Admin Panel</span>
+          <Link to="/register">
+            <Button size="lg" variant="outline" className="gap-2 font-semibold">
+              <ArrowRight className="w-4 h-4 text-indigo-600" />
+              <span>Create Candidate Account</span>
             </Button>
           </Link>
         </div>
@@ -155,39 +147,6 @@ export default function Home() {
                   </Link>
                 </CardContent>
               </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Navigation Hub */}
-      <div className="space-y-4">
-        <h2 className="font-heading font-bold text-xl text-slate-900">
-          Role Portals Quick Access
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {portalPortals.map((portal) => {
-            const Icon = portal.icon;
-            return (
-              <Link
-                key={portal.path}
-                to={portal.path}
-                className="p-5 bg-white rounded-xl border border-slate-200 shadow-card hover:border-indigo-500 hover:shadow-card-hover transition-all flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="p-2 bg-slate-50 text-slate-700 rounded-lg w-fit group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors mb-3">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-heading font-bold text-base text-slate-900 group-hover:text-indigo-600 transition-colors">
-                    {portal.label}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">{portal.desc}</p>
-                </div>
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-indigo-600 font-mono">
-                  <span>{portal.path}</span>
-                  <span>&rarr;</span>
-                </div>
-              </Link>
             );
           })}
         </div>

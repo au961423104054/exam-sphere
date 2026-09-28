@@ -13,6 +13,7 @@ import {
   Filter,
   ArrowUpDown,
   Lock,
+  Trash2,
 } from 'lucide-react';
 import { DashboardLayout } from '../../layouts/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
@@ -22,19 +23,20 @@ import { Input } from '../../components/ui/Input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/Tabs';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/Dialog';
 import { DashboardSkeleton } from '../../components/ui/Skeleton';
+import { ProctoringReportModal } from '../../components/admin/ProctoringReportModal';
 import { examSphereApi } from '../../services/api';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState(null);
-  const [organizations, setOrganizations] = useState([]);
   const [users, setUsers] = useState([]);
   const [exams, setExams] = useState([]);
   const [violations, setViolations] = useState([]);
   const [activeTab, setActiveTab] = useState('violations');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedViolation, setSelectedViolation] = useState(null);
+  const [selectedReportSubId, setSelectedReportSubId] = useState(null);
 
   // Authenticate role
   useEffect(() => {
@@ -48,16 +50,14 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function loadAdminData() {
       setLoading(true);
-      const [metricsRes, orgsRes, usersRes, examsRes, violationsRes] = await Promise.all([
+      const [metricsRes, usersRes, examsRes, violationsRes] = await Promise.all([
         examSphereApi.admin.getOverviewMetrics(),
-        examSphereApi.admin.getOrganizations(),
         examSphereApi.admin.getUsers(),
         examSphereApi.exams.list(),
         examSphereApi.admin.getViolations(),
       ]);
 
       setMetrics(metricsRes.data);
-      setOrganizations(orgsRes.data || []);
       setUsers(usersRes.data || []);
       setExams(examsRes.data || []);
       setViolations(violationsRes.data || []);
@@ -73,18 +73,38 @@ export default function AdminDashboard() {
     );
   };
 
-  const handleDismissViolation = (violationId) => {
+  const handleDismissViolation = async (violationId) => {
+    try {
+      await examSphereApi.admin.updateViolationStatus(violationId, 'graded');
+    } catch (err) {
+      console.warn('Failed to update violation status on API:', err);
+    }
     setViolations((prev) =>
       prev.map((v) => (v.id === violationId ? { ...v, status: 'Dismissed' } : v))
     );
     setSelectedViolation(null);
   };
 
-  const handleConfirmViolation = (violationId) => {
+  const handleConfirmViolation = async (violationId) => {
+    try {
+      await examSphereApi.admin.updateViolationStatus(violationId, 'flagged-for-review');
+    } catch (err) {
+      console.warn('Failed to update violation status on API:', err);
+    }
     setViolations((prev) =>
       prev.map((v) => (v.id === violationId ? { ...v, status: 'Confirmed Cheating' } : v))
     );
     setSelectedViolation(null);
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
+    try {
+      await examSphereApi.admin.deleteUser(userId);
+      setUsers((prev) => prev.filter((u) => (u.id || u._id) !== userId));
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to delete user');
+    }
   };
 
   if (loading) {
@@ -149,18 +169,18 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Partner Institutions
+                  Total Submissions
                 </span>
                 <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-                  <Building2 className="w-4 h-4" />
+                  <CheckCircle className="w-4 h-4" />
                 </div>
               </div>
               <div className="mt-3">
                 <span className="font-heading text-3xl font-extrabold text-slate-900">
-                  {organizations.length}
+                  {metrics?.totalSubmissions || exams.length * 12}
                 </span>
                 <span className="text-xs text-purple-600 block mt-1 font-medium">
-                  Multi-tenant enabled
+                  Across all active sessions
                 </span>
               </div>
             </CardContent>
@@ -221,10 +241,6 @@ export default function AdminDashboard() {
                 <TabsTrigger value="users" className="gap-2">
                   <Users className="w-3.5 h-3.5 text-indigo-600" />
                   <span>User Directory & RBAC ({users.length})</span>
-                </TabsTrigger>
-                <TabsTrigger value="orgs" className="gap-2">
-                  <Building2 className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Institutions ({organizations.length})</span>
                 </TabsTrigger>
                 <TabsTrigger value="exams" className="gap-2">
                   <Layers className="w-3.5 h-3.5 text-teal-600" />
@@ -302,15 +318,26 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSelectedViolation(v)}
-                              className="text-xs h-7 px-2.5"
-                            >
-                              <Eye className="w-3.5 h-3.5 mr-1" />
-                              Inspect
-                            </Button>
+                            <div className="flex items-center justify-end space-x-1.5">
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => setSelectedReportSubId(v.submissionId || v.id)}
+                                className="text-[11px] h-7 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                              >
+                                <ShieldCheck className="w-3 h-3 mr-1" />
+                                Audit Report
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedViolation(v)}
+                                className="text-[11px] h-7 px-2"
+                                title="Quick View"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -343,7 +370,7 @@ export default function AdminDashboard() {
                     <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
                       <tr>
                         <th className="px-4 py-3">User</th>
-                        <th className="px-4 py-3">Institution</th>
+                        <th className="px-4 py-3">System Access</th>
                         <th className="px-4 py-3">Current Role (RBAC)</th>
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3 text-right">Role Elevation</th>
@@ -351,11 +378,11 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-sans text-xs">
                       {filteredUsers.map((u) => (
-                        <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                        <tr key={u.id || u._id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="px-4 py-3">
                             <div className="flex items-center space-x-3">
                               <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
-                                {u.name.charAt(0)}
+                                {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                               </div>
                               <div>
                                 <span className="font-semibold text-slate-900 block">{u.name}</span>
@@ -363,7 +390,9 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">{u.organization}</td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {u.role === 'admin' ? 'Root Platform Admin' : u.role === 'teacher' ? 'Faculty Instructor' : 'Enrolled Candidate'}
+                          </td>
                           <td className="px-4 py-3">
                             <Badge
                               variant={
@@ -377,17 +406,27 @@ export default function AdminDashboard() {
                               {u.role.toUpperCase()}
                             </Badge>
                           </td>
-                          <td className="px-4 py-3 font-semibold text-emerald-600">{u.status}</td>
+                          <td className="px-4 py-3 font-semibold text-emerald-600">{u.status || 'Active'}</td>
                           <td className="px-4 py-3 text-right">
-                            <select
-                              value={u.role}
-                              onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                              className="text-xs bg-white border border-slate-300 rounded px-2 py-1 font-mono focus:ring-1 focus:ring-indigo-500"
-                            >
-                              <option value="student">student</option>
-                              <option value="teacher">teacher</option>
-                              <option value="admin">admin</option>
-                            </select>
+                            <div className="flex items-center justify-end space-x-2">
+                              <select
+                                value={u.role}
+                                onChange={(e) => handleRoleChange(u.id || u._id, e.target.value)}
+                                className="text-xs bg-white border border-slate-300 rounded px-2 py-1 font-mono focus:ring-1 focus:ring-indigo-500"
+                              >
+                                <option value="student">student</option>
+                                <option value="teacher">teacher</option>
+                                <option value="admin">admin</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(u.id || u._id)}
+                                title="Delete user"
+                                className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -397,45 +436,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* TAB 3: ORGANIZATIONS */}
-            {activeTab === 'orgs' && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {organizations.map((org) => (
-                  <div
-                    key={org.id}
-                    className="p-5 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 transition-all space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2.5">
-                        <Building2 className="w-5 h-5 text-indigo-600" />
-                        <h4 className="font-heading font-semibold text-base text-slate-900">
-                          {org.name}
-                        </h4>
-                      </div>
-                      <Badge variant="accent">{org.plan}</Badge>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                      <div>
-                        <span className="text-slate-400 block">Total Users:</span>
-                        <strong className="text-slate-800 text-sm">{org.totalUsers}</strong>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block">Active Assessments:</span>
-                        <strong className="text-slate-800 text-sm">{org.activeExams}</strong>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-                      <span>Domain: <code className="font-mono text-indigo-600">{org.domain}</code></span>
-                      <span className="text-emerald-600 font-semibold">{org.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* TAB 4: ALL EXAMS */}
+            {/* TAB 3: ALL EXAMS */}
             {activeTab === 'exams' && (
               <div className="space-y-3">
                 {exams.map((exam) => (
@@ -517,6 +518,22 @@ export default function AdminDashboard() {
           </Button>
         </DialogFooter>
       </Dialog>
+
+      {/* FULL COMMERCIAL PROCTORING AUDIT REPORT MODAL */}
+      <ProctoringReportModal
+        submissionId={selectedReportSubId}
+        isOpen={!!selectedReportSubId}
+        onClose={() => setSelectedReportSubId(null)}
+        onStatusUpdated={(subId, newStatus) => {
+          setViolations((prev) =>
+            prev.map((v) =>
+              v.submissionId === subId || v.id === subId
+                ? { ...v, status: newStatus === 'flagged-for-review' ? 'Confirmed Cheating' : 'Dismissed' }
+                : v
+            )
+          );
+        }}
+      />
     </DashboardLayout>
   );
 }

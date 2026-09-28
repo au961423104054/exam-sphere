@@ -10,9 +10,12 @@ import {
   StatusBar,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { useOrg } from '../context/OrgContext';
 import { fetchExams } from '../services/api';
 import { ExamCardSkeleton } from '../components/Skeleton';
+import Badge from '../components/Badge';
+import Button from '../components/Button';
+import EmptyState from '../components/EmptyState';
+import BottomNavBar from '../components/BottomNavBar';
 import {
   fetchNotifications,
   registerForPushNotificationsAsync,
@@ -20,7 +23,6 @@ import {
 
 export default function ExamListScreen({ navigation }) {
   const { user, signOut } = useAuth();
-  const { activeOrg } = useOrg();
   const [exams, setExams] = useState([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -31,13 +33,12 @@ export default function ExamListScreen({ navigation }) {
       const data = await fetchExams();
       setExams(data);
 
-      // Load notifications and register push notifications
       const notifs = await fetchNotifications();
       const unread = (notifs || []).filter((n) => !n.read).length;
       setUnreadNotifCount(unread);
       registerForPushNotificationsAsync().catch(() => {});
     } catch (err) {
-      console.warn('Failed to load exams:', err);
+      console.warn('[ExamList] Error loading exams:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -62,151 +63,148 @@ export default function ExamListScreen({ navigation }) {
     navigation.navigate('Auth', { screen: 'Login' });
   };
 
-  const renderExamCard = ({ item }) => (
-    <View style={styles.card} className="bg-white rounded-xl p-5 mb-4 border border-slate-200">
-      <View style={styles.cardHeader}>
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{item.category || 'General'}</Text>
+  const renderExamCard = ({ item }) => {
+    const hasCoding = (item.questions || []).some((q) => q.type === 'coding');
+    const isReady = item.status === 'Ready' || item.status === 'Active';
+
+    return (
+      <View style={styles.card}>
+        {/* Card Header */}
+        <View style={styles.cardHeader}>
+          <View style={styles.badgeRow}>
+            <Badge variant="default" label={item.category || 'General'} />
+            {hasCoding && <Badge variant="accent" label="Coding Challenge" />}
+          </View>
+          <Badge
+            variant={isReady ? 'success' : 'warning'}
+            label={isReady ? '● Active Ready' : '● Scheduled'}
+          />
         </View>
-        <View style={[styles.statusBadge, item.status === 'Ready' ? styles.statusReady : styles.statusScheduled]}>
-          <Text style={[styles.statusText, item.status === 'Ready' ? styles.statusTextReady : styles.statusTextScheduled]}>
-            ● {item.status || 'Ready'}
+
+        {/* Title & Desc */}
+        <Text style={styles.examTitle}>{item.title}</Text>
+        {item.description ? (
+          <Text style={styles.examDesc} numberOfLines={2}>
+            {item.description}
           </Text>
+        ) : null}
+
+        {/* Specifications Grid */}
+        <View style={styles.metaRow}>
+          <View style={styles.metaCol}>
+            <Text style={styles.metaLabel}>Duration</Text>
+            <Text style={styles.metaValue}>
+              {item.durationMinutes || item.duration || 60}m
+            </Text>
+          </View>
+          <View style={styles.metaCol}>
+            <Text style={styles.metaLabel}>Questions</Text>
+            <Text style={styles.metaValue}>
+              {item.totalQuestions || item.questions?.length || 4}
+            </Text>
+          </View>
+          <View style={styles.metaCol}>
+            <Text style={styles.metaLabel}>Total Marks</Text>
+            <Text style={styles.metaValue}>{item.totalMarks || 100}</Text>
+          </View>
+          <View style={styles.metaCol}>
+            <Text style={styles.metaLabel}>Proctoring</Text>
+            <Text style={[styles.metaValue, styles.textTeal]}>Enforced</Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.cardActionsRow}>
+          <Button
+            title="Start Assessment →"
+            onPress={() => handleSelectExam(item)}
+            variant="primary"
+            size="md"
+            style={styles.actionBtn}
+          />
+          <Button
+            title="🏆 Leaderboard"
+            onPress={() =>
+              navigation.navigate('Leaderboard', {
+                examId: item.id || item._id,
+                examTitle: item.title,
+                totalMarks: item.totalMarks || 100,
+              })
+            }
+            variant="secondary"
+            size="md"
+            style={styles.leaderboardBtn}
+          />
         </View>
       </View>
-
-      <Text style={styles.examTitle}>{item.title}</Text>
-      {item.description ? (
-        <Text style={styles.examDesc} numberOfLines={2}>
-          {item.description}
-        </Text>
-      ) : null}
-
-      <View style={styles.metaRow}>
-        <View style={styles.metaCol}>
-          <Text style={styles.metaLabel}>Duration</Text>
-          <Text style={styles.metaValue}>{item.durationMinutes || item.duration} min</Text>
-        </View>
-        <View style={styles.metaCol}>
-          <Text style={styles.metaLabel}>Questions</Text>
-          <Text style={styles.metaValue}>{item.totalQuestions || item.questions?.length || 0}</Text>
-        </View>
-        <View style={styles.metaCol}>
-          <Text style={styles.metaLabel}>Total Marks</Text>
-          <Text style={styles.metaValue}>{item.totalMarks || 100}</Text>
-        </View>
-      </View>
-
-      <View style={styles.cardActionsRow}>
-        <TouchableOpacity
-          style={styles.actionBtn}
-          activeOpacity={0.8}
-          onPress={() => handleSelectExam(item)}
-        >
-          <Text style={styles.actionBtnText}>Guidelines →</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.leaderboardBtn}
-          activeOpacity={0.8}
-          onPress={() =>
-            navigation.navigate('Leaderboard', {
-              examId: item.id || item._id,
-              examTitle: item.title,
-              totalMarks: item.totalMarks || 100,
-            })
-          }
-        >
-          <Text style={styles.leaderboardBtnText}>🏆 Rankings</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Header Bar */}
+      {/* Top Header */}
       <View style={styles.topNav}>
-        <View style={styles.topLeftBlock}>
-          <Text style={styles.appName}>ExamSphere</Text>
-          <TouchableOpacity
-            style={[styles.orgChip, { borderColor: `${activeOrg.brandColor || '#4F46E5'}40` }]}
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('OrgSettings')}
-          >
-            <Text style={styles.orgChipIcon}>{activeOrg.logoIcon || '🏛️'}</Text>
-            <Text style={styles.orgChipText} numberOfLines={1}>
-              {activeOrg.shortName || activeOrg.name}
+        <View style={styles.brandRow}>
+          <View style={styles.brandSquircle}>
+            <Text style={styles.brandSquircleText}>E</Text>
+          </View>
+          <View>
+            <Text style={styles.appName}>
+              Exam<Text style={styles.appAccent}>Sphere</Text>
             </Text>
-            <Text style={styles.orgChipArrow}>▾</Text>
-          </TouchableOpacity>
+            <Text style={styles.greeting} numberOfLines={1}>
+              {user?.name || 'Alex Student'} &bull; Candidate
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.topRightRow}>
-          <TouchableOpacity
-            style={styles.headerIconBtn}
-            onPress={() => navigation.navigate('OrgSettings')}
-          >
-            <Text style={styles.headerIconEmoji}>⚙️</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.bellBtn}
-            onPress={() => navigation.navigate('Notifications')}
-          >
-            <Text style={styles.bellIcon}>🔔</Text>
-            {unreadNotifCount > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{unreadNotifCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Institutional Affiliation Banner */}
+      {/* Institutional Affiliation Bar */}
       <TouchableOpacity
         style={styles.institutionBanner}
         activeOpacity={0.8}
-        onPress={() => navigation.navigate('OrgSettings')}
+        onPress={() => navigation.navigate('Profile')}
       >
         <View style={styles.institutionBannerLeft}>
-          <View style={[styles.instBannerLogoBox, { backgroundColor: `${activeOrg.brandColor}15` }]}>
-            <Text style={styles.instBannerLogoText}>{activeOrg.logoIcon}</Text>
+          <View
+            style={[
+              styles.instBannerLogoBox,
+              { backgroundColor: '#EEF2FF' },
+            ]}
+          >
+            <Text style={styles.instBannerLogoText}>
+              🏛️
+            </Text>
           </View>
           <View style={styles.instBannerTextCol}>
             <View style={styles.instNameRow}>
               <Text style={styles.instTitleText} numberOfLines={1}>
-                {activeOrg.name}
+                ExamSphere Academic Center
               </Text>
-              {activeOrg.verified && (
-                <View style={styles.instVerifiedBadge}>
-                  <Text style={styles.instVerifiedText}>✓ VERIFIED</Text>
-                </View>
-              )}
+              <View style={styles.instVerifiedBadge}>
+                <Text style={styles.instVerifiedText}>✓ SECURE</Text>
+              </View>
             </View>
             <Text style={styles.instSubText}>
-              {activeOrg.plan} • {activeOrg.code} • Proctoring active
+              AI Proctoring Active &bull; Role: {user?.role || 'student'}
             </Text>
           </View>
         </View>
-        <Text style={styles.instManageLink}>Switch →</Text>
+        <Text style={styles.instManageLink}>Profile →</Text>
       </TouchableOpacity>
 
-      {/* Title & Filter Bar */}
+      {/* Section Header */}
       <View style={styles.sectionHeader}>
-        <View>
-          <Text style={styles.sectionTitle}>Available Examinations</Text>
-          <Text style={styles.sectionSubtitle}>
-            Select an exam to review proctoring rules and begin
-          </Text>
-        </View>
+        <Text style={styles.sectionTitle}>Scheduled Examinations</Text>
+        <Text style={styles.sectionSubtitle}>
+          Select an exam to review proctoring rules and begin
+        </Text>
       </View>
 
       {/* Content List or Skeleton Loading */}
@@ -226,18 +224,28 @@ export default function ExamListScreen({ navigation }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={['#2563EB']}
-              tintColor="#2563EB"
+              colors={['#4F46E5']}
+              tintColor="#4F46E5"
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>No Exams Available</Text>
-              <Text style={styles.emptySub}>Please check back later or pull to refresh.</Text>
-            </View>
+            <EmptyState
+              icon="📝"
+              title="No Exams Available"
+              description="You have no examinations scheduled right now. Pull down to refresh."
+              actionLabel="Refresh List"
+              onAction={handleRefresh}
+            />
           }
         />
       )}
+
+      {/* Native Bottom Navigation Bar */}
+      <BottomNavBar
+        activeScreen="ExamList"
+        navigation={navigation}
+        unreadNotifCount={unreadNotifCount}
+      />
     </SafeAreaView>
   );
 }
@@ -252,76 +260,70 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  brandSquircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#4F46E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#4F46E5',
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  brandSquircleText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+  },
   appName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: '#0F172A',
-    letterSpacing: -0.5,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: -0.3,
   },
-  topLeftBlock: {
-    flex: 1,
-    marginRight: 10,
-  },
-  orgChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginTop: 3,
-    alignSelf: 'flex-start',
-  },
-  orgChipIcon: {
-    fontSize: 12,
-    marginRight: 4,
-  },
-  orgChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#334155',
-    maxWidth: 130,
-  },
-  orgChipArrow: {
-    fontSize: 10,
-    color: '#64748B',
-    marginLeft: 3,
+  appAccent: {
+    color: '#4F46E5',
   },
   greeting: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#64748B',
-    marginTop: 2,
+    marginTop: 1,
+    fontFamily: 'Inter_500Medium',
   },
-  candidateName: {
-    fontWeight: '600',
-    color: '#2563EB',
-  },
-  topRightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerIconBtn: {
-    padding: 6,
+  signOutBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
-  headerIconEmoji: {
-    fontSize: 16,
+  signOutText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    fontFamily: 'Inter_600SemiBold',
   },
   institutionBanner: {
     marginHorizontal: 16,
     marginTop: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -340,9 +342,9 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   instBannerLogoBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -362,13 +364,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+    fontFamily: 'Inter_700Bold',
     flexShrink: 1,
   },
   instVerifiedBadge: {
     backgroundColor: '#DCFCE7',
     paddingHorizontal: 5,
     paddingVertical: 1,
-    borderRadius: 3,
+    borderRadius: 4,
   },
   instVerifiedText: {
     color: '#15803D',
@@ -379,82 +382,46 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     marginTop: 2,
+    fontFamily: 'Inter_400Regular',
   },
   instManageLink: {
     fontSize: 12,
     fontWeight: '700',
     color: '#4F46E5',
-  },
-  bellBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    position: 'relative',
-  },
-  bellIcon: {
-    fontSize: 16,
-  },
-  bellBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#4F46E5',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  bellBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  signOutBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-  },
-  signOutText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
+    fontFamily: 'Inter_600SemiBold',
   },
   sectionHeader: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 16,
     paddingBottom: 8,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: '#0F172A',
-    letterSpacing: -0.5,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: -0.4,
   },
   sectionSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
-    marginTop: 4,
+    marginTop: 3,
+    fontFamily: 'Inter_400Regular',
   },
   listContent: {
     padding: 16,
+    paddingBottom: 24,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
@@ -464,43 +431,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  categoryBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  categoryText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2563EB',
-    textTransform: 'uppercase',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  statusReady: {
-    backgroundColor: '#DCFCE7',
-  },
-  statusScheduled: {
-    backgroundColor: '#FEF3C7',
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  statusTextReady: {
-    color: '#15803D',
-  },
-  statusTextScheduled: {
-    color: '#92400E',
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   examTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: '#0F172A',
+    fontFamily: 'Inter_700Bold',
     lineHeight: 22,
     marginBottom: 6,
   },
@@ -509,6 +449,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
     lineHeight: 18,
     marginBottom: 12,
+    fontFamily: 'Inter_400Regular',
   },
   metaRow: {
     flexDirection: 'row',
@@ -523,62 +464,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   metaLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#94A3B8',
-    fontWeight: '500',
+    fontWeight: '600',
     textTransform: 'uppercase',
     marginBottom: 2,
+    fontFamily: 'Inter_600SemiBold',
   },
   metaValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#1E293B',
+    fontFamily: 'Inter_700Bold',
+  },
+  textTeal: {
+    color: '#0D9488',
   },
   cardActionsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 2,
   },
   actionBtn: {
-    flex: 1.4,
-    backgroundColor: '#4F46E5',
-    paddingVertical: 11,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+    flex: 1.5,
   },
   leaderboardBtn: {
     flex: 1,
-    backgroundColor: '#EEF2FF',
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
-    paddingVertical: 11,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  leaderboardBtnText: {
-    color: '#4338CA',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingTop: 60,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1E293B',
-  },
-  emptySub: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 6,
   },
 });

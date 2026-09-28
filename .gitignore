@@ -60,6 +60,9 @@ desktop.ini
 coverage/
 .nyc_output/
 
+# Local media uploads
+backend/uploads/
+
 # Cache and Temporary Folders
 .cache/
 .parcel-cache/

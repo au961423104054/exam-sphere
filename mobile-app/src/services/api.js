@@ -7,15 +7,24 @@ import { Platform } from 'react-native';
 export const AUTH_TOKEN_KEY = 'exam_sphere_auth_token';
 
 /**
- * Retrieve the API base URL from app.config.js extras, falling back
- * to EXPO_PUBLIC_API_BASE_URL or local emulator default.
+ * Retrieve the API base URL dynamically based on platform and environment.
+ * - On Web (browser): uses window.location.hostname or localhost:5000/api
+ * - On iOS Simulator: uses localhost:5000/api
+ * - On Android Emulator / Native: uses EXPO_PUBLIC_API_BASE_URL or 10.0.2.2:5000/api
  */
 export const getApiBaseUrl = () => {
+  if (Platform.OS === 'web') {
+    const host = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : 'localhost';
+    return `http://${host}:5000/api`;
+  }
+
+  if (Platform.OS === 'ios') {
+    return 'http://localhost:5000/api';
+  }
+
   return (
-    Constants.expoConfig?.extra?.apiBaseUrl ||
-    Constants.manifest2?.extra?.expoClient?.extra?.apiBaseUrl ||
-    Constants.manifest?.extra?.apiBaseUrl ||
     process.env.EXPO_PUBLIC_API_BASE_URL ||
+    Constants.expoConfig?.extra?.apiBaseUrl ||
     'http://10.0.2.2:5000/api'
   );
 };
@@ -236,41 +245,197 @@ export const checkHealth = async () => {
   }
 };
 
-export const fetchExams = async () => {
+export const isMobileDemoMode = async () => {
   try {
-    const res = await api.get('/exams');
-    if (res.data && res.data.data) {
-      return res.data.data;
+    const val = await AsyncStorage.getItem('mobile_demo_mode');
+    return val === 'true';
+  } catch {
+    return false;
+  }
+};
+
+export const setMobileDemoMode = async (enabled) => {
+  try {
+    if (enabled) {
+      await AsyncStorage.setItem('mobile_demo_mode', 'true');
+    } else {
+      await AsyncStorage.removeItem('mobile_demo_mode');
     }
-    return res.data;
   } catch (error) {
-    console.log('[API] /exams unreachable, using mock exams data.');
+    console.warn('[API Service] Error setting demo mode:', error);
+  }
+};
+
+export const loginUser = async (credentials) => {
+  const email = credentials?.email || (typeof credentials === 'string' ? credentials : '');
+  const password = credentials?.password || '';
+
+  if (await isMobileDemoMode()) {
+    const mockToken = 'demo_token_' + Date.now();
+    await setStoredToken(mockToken);
+    return {
+      success: true,
+      data: {
+        token: mockToken,
+        user: {
+          id: 'user_cand_101',
+          name: email.split('@')[0] || 'Candidate Student',
+          email,
+          role: email.includes('admin') ? 'admin' : email.includes('teacher') ? 'teacher' : 'student',
+        },
+      },
+    };
+  }
+
+  const res = await api.post('/auth/login', { email, password });
+  if (res.data?.data?.token) {
+    await setStoredToken(res.data.data.token);
+  }
+  return res.data;
+};
+
+export const registerUser = async ({ name, email, password, role = 'student' }) => {
+  if (await isMobileDemoMode()) {
+    const mockToken = 'demo_token_' + Date.now();
+    await setStoredToken(mockToken);
+    return {
+      success: true,
+      data: {
+        token: mockToken,
+        user: {
+          id: 'user_cand_' + Date.now(),
+          name,
+          email,
+          role,
+        },
+      },
+    };
+  }
+
+  const res = await api.post('/auth/register', {
+    name,
+    email,
+    password,
+    role,
+  });
+  if (res.data?.data?.token) {
+    await setStoredToken(res.data.data.token);
+  }
+  return res.data;
+};
+
+export const forgotPassword = async (email) => {
+  if (await isMobileDemoMode()) {
+    return {
+      success: true,
+      message: 'Password reset code generated (Demo Mode: 123456)',
+      data: { resetToken: 'demo_token_123456', resetCode: '123456' },
+    };
+  }
+  const res = await api.post('/auth/forgot-password', { email });
+  return res.data;
+};
+
+export const resetPassword = async ({ email, token, newPassword }) => {
+  if (await isMobileDemoMode()) {
+    return {
+      success: true,
+      message: 'Password has been reset successfully. Please sign in.',
+    };
+  }
+  const res = await api.post('/auth/reset-password', { email, token, newPassword });
+  return res.data;
+};
+
+export const fetchExams = async () => {
+  if (await isMobileDemoMode()) {
     return MOCK_EXAMS_DATA;
   }
+  const res = await api.get('/exams');
+  return res.data?.data || res.data;
 };
 
 export const fetchExamDetails = async (examId) => {
-  try {
-    const res = await api.get(`/exams/${examId}`);
-    return res.data?.data || res.data;
-  } catch (error) {
-    console.log(`[API] /exams/${examId} unreachable, using mock details.`);
+  if (await isMobileDemoMode()) {
     const found = MOCK_EXAMS_DATA.find((e) => e.id === examId || e._id === examId);
     return found || MOCK_EXAMS_DATA[0];
   }
+  const res = await api.get(`/exams/${examId}`);
+  return res.data?.data || res.data;
 };
 
-export const logProctorViolation = async ({ submissionId, examId, violationType, details }) => {
+export const startExamSubmission = async (examId, verificationSnapshotUrl = '') => {
+  if (await isMobileDemoMode()) {
+    return {
+      submissionId: `sub_demo_${Date.now()}`,
+      status: 'in-progress',
+      examId,
+      verificationSnapshotUrl,
+    };
+  }
+  const res = await api.post('/submissions/start', { examId, verificationSnapshotUrl });
+  return res.data?.data || res.data;
+};
+
+export const verifyCandidateIdentity = async ({ examId, snapshotBase64 }) => {
+  if (await isMobileDemoMode()) {
+    return {
+      success: true,
+      message: 'Mobile demo mode: Identity verification bypassed.',
+      data: {
+        verified: true,
+        snapshotUrl: '/uploads/proctor/mock-mobile-verify.jpg',
+        verifiedAt: new Date().toISOString(),
+      },
+    };
+  }
+  try {
+    const res = await api.post('/proctor/verify-identity', { examId, snapshotBase64 });
+    return res.data;
+  } catch (error) {
+    console.warn('[API] verifyCandidateIdentity error, returning fallback:', error.message);
+    return {
+      success: false,
+      message: error?.response?.data?.message || 'Verification service unreachable.',
+      data: { verified: false },
+    };
+  }
+};
+
+export const uploadPeriodicProctorSnapshot = async ({ submissionId, examId, snapshotBase64, timestamp }) => {
+  try {
+    const res = await api.post('/proctor/periodic-snapshot', {
+      submissionId,
+      examId,
+      snapshotBase64,
+      timestamp: timestamp || new Date().toISOString(),
+    });
+    return res.data;
+  } catch (error) {
+    // Non-fatal background task
+    return { success: true, localMock: true };
+  }
+};
+
+export const saveQuestionAnswer = async (submissionId, answerData) => {
+  if (await isMobileDemoMode()) {
+    return { saved: true, questionId: answerData.questionId };
+  }
+  const res = await api.post(`/submissions/${submissionId}/answer`, answerData);
+  return res.data?.data || res.data;
+};
+
+export const logProctorViolation = async ({ submissionId, examId, violationType, details, snapshotBase64 }) => {
   const payload = {
     submissionId: submissionId || 'sub_demo_101',
     examId: examId || 'exam_101',
-    type: violationType, // 'tab-switch', 'screenshot-attempt', 'screen-recording'
+    type: violationType, // 'tab-switch', 'screenshot-attempt', 'camera-blocked', etc.
     timestamp: new Date().toISOString(),
     details: details || 'Security monitor detected incident',
+    snapshotBase64: snapshotBase64 || undefined,
   };
 
   try {
-    // Attempt either /proctor/log-violation or /proctor/log
     const res = await api.post('/proctor/log-violation', payload).catch(() => api.post('/proctor/log', payload));
     return res.data;
   } catch (error) {
@@ -327,11 +492,7 @@ export const executeCodeRun = async (submissionId, { language, code, testCases }
 };
 
 export const submitFinalExam = async (submissionId, answersData) => {
-  try {
-    const res = await api.post(`/submissions/${submissionId || 'sub_demo_101'}/submit`, answersData);
-    return res.data?.data || res.data;
-  } catch (error) {
-    console.log('[API] /submit unreachable, calculating mock final score.');
+  if (await isMobileDemoMode()) {
     return {
       submissionId: submissionId || 'sub_demo_' + Date.now(),
       score: 85,
@@ -340,11 +501,14 @@ export const submitFinalExam = async (submissionId, answersData) => {
       grade: 'A',
       accuracy: '88%',
       proctorSummary: {
-        totalViolations: answersData.violationsCount || 0,
-        status: (answersData.violationsCount || 0) >= 3 ? 'Flagged for Review' : 'Verified',
+        totalViolations: answersData?.violationsCount || 0,
+        status: (answersData?.violationsCount || 0) >= 3 ? 'Flagged for Review' : 'Verified',
       },
     };
   }
+
+  const res = await api.post(`/submissions/${submissionId}/finalize`, answersData);
+  return res.data?.data || res.data;
 };
 
 export const MOCK_LEADERBOARDS = {
