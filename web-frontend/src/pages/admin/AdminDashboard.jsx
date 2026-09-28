@@ -7,6 +7,7 @@ import {
   Layers,
   AlertTriangle,
   CheckCircle,
+  ShieldCheck,
   XCircle,
   Eye,
   Search,
