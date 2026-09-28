@@ -15,6 +15,8 @@ import {
   markAllNotificationsAsRead,
   sendLocalNotification,
 } from '../services/notificationService';
+import BottomNavBar from '../components/BottomNavBar';
+import EmptyState from '../components/EmptyState';
 
 export default function NotificationListScreen({ navigation }) {
   const [notifications, setNotifications] = useState([]);
@@ -193,14 +195,21 @@ export default function NotificationListScreen({ navigation }) {
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyIcon}>🔔</Text>
-            <Text style={styles.emptyTitle}>No Notifications</Text>
-            <Text style={styles.emptySub}>
-              You are all caught up! New exam reminders and score alerts will appear here.
-            </Text>
-          </View>
+          <EmptyState
+            icon="🔔"
+            title="No Notifications"
+            description="You are all caught up! New exam reminders and score alerts will appear here."
+            actionLabel="Simulate Reminder"
+            onAction={handleSimulatePush}
+          />
         }
+      />
+
+      {/* Bottom Navigation */}
+      <BottomNavBar
+        activeScreen="Notifications"
+        navigation={navigation}
+        unreadNotifCount={unreadCount}
       />
     </SafeAreaView>
   );

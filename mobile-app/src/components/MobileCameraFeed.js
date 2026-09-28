@@ -9,23 +9,25 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import api from '../services/api';
+import api, { uploadPeriodicProctorSnapshot } from '../services/api';
 
 /**
  * MobileCameraFeed Component
  *
- * Implements Phase 2 automated front-facing webcam proctoring:
+ * Implements commercial-grade automated front-facing camera continuous monitoring:
  * - Requests camera hardware permission
- * - Periodically captures frames every 30 seconds (matching web app proctor interval)
- * - Transmits JPEG frame to POST /api/proctor/snapshot
+ * - Periodically captures frames every N seconds (configurable per exam, e.g. 30–60s)
+ * - Transmits JPEG frame to POST /api/proctor/periodic-snapshot (session visual filmstrip)
  * - Displays a sleek, non-intrusive floating picture-in-picture preview during the exam
  */
 export default function MobileCameraFeed({
   examId = 'exam_101',
+  submissionId = null,
   candidateEmail = 'alex.student@examsphere.io',
   intervalSeconds = 30,
   enabled = true,
   onSnapshotUploaded,
+  onCameraObstructed,
 }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [isMinimized, setIsMinimized] = useState(false);
@@ -45,7 +47,7 @@ export default function MobileCameraFeed({
 
       if (cameraRef.current.takePictureAsync) {
         const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.5,
+          quality: 0.45,
           base64: true,
           shutterSound: false,
         });
@@ -53,32 +55,40 @@ export default function MobileCameraFeed({
       }
 
       const timestamp = new Date().toISOString();
-      const payload = {
-        examId,
-        candidateEmail,
-        imageBase64: imageBase64 || 'data:image/jpeg;base64,mockProctorSnapshotBase64',
-        timestamp,
-      };
 
-      // Upload via proctor snapshot endpoint
-      try {
-        await api.post('/proctor/snapshot', payload);
-      } catch {
-        console.log('[Proctor Camera] Snapshot captured and stored locally (mock backend).');
+      if (submissionId) {
+        // Continuous session filmstrip monitoring endpoint
+        await uploadPeriodicProctorSnapshot({
+          submissionId,
+          examId,
+          snapshotBase64: imageBase64,
+          timestamp,
+        });
+      } else {
+        // Fallback snapshot endpoint
+        await api.post('/proctor/snapshot', {
+          examId,
+          candidateEmail,
+          imageBase64: imageBase64 || 'data:image/jpeg;base64,mockProctorSnapshotBase64',
+          timestamp,
+        }).catch(() => {});
       }
 
       setSnapshotCount((prev) => prev + 1);
       setLastUploadTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
       if (onSnapshotUploaded) {
-        onSnapshotUploaded({ count: snapshotCount + 1, timestamp });
+        onSnapshotUploaded({ count: snapshotCount + 1, timestamp, url: imageBase64 });
       }
     } catch (err) {
       console.warn('[Proctor Camera] Error capturing camera snapshot:', err);
+      if (onCameraObstructed) {
+        onCameraObstructed('Camera hardware capture error or lens obstructed.');
+      }
     } finally {
       setIsCapturing(false);
     }
-  }, [cameraRef, isCapturing, examId, candidateEmail, onSnapshotUploaded, snapshotCount]);
+  }, [cameraRef, isCapturing, examId, submissionId, candidateEmail, onSnapshotUploaded, onCameraObstructed, snapshotCount]);
 
   // Periodic interval timer
   useEffect(() => {

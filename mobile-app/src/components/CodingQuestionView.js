@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -21,6 +21,29 @@ export default function CodingQuestionView({
   const [isRunning, setIsRunning] = useState(false);
   const [testResults, setTestResults] = useState(null);
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'results'
+
+  // Preserve initial code in ref so CodeEditor doesn't re-mount or fire on every render
+  const initialCodeRef = useRef(code);
+
+  // Keep a ref to the latest code to prevent feedback loops
+  const lastCodeRef = useRef(code);
+  useEffect(() => {
+    lastCodeRef.current = code;
+  }, [code]);
+
+  // Keep a ref to onChangeCode so handleEditorChange callback identity is 100% stable
+  const onChangeRef = useRef(onChangeCode);
+  useEffect(() => {
+    onChangeRef.current = onChangeCode;
+  }, [onChangeCode]);
+
+  const handleEditorChange = useCallback((newVal) => {
+    if (newVal === lastCodeRef.current) return;
+    lastCodeRef.current = newVal;
+    if (onChangeRef.current) {
+      onChangeRef.current(newVal);
+    }
+  }, []);
 
   const handleRunCode = async () => {
     setIsRunning(true);
@@ -94,9 +117,9 @@ export default function CodingQuestionView({
             </TouchableOpacity>
           </View>
 
-          {/* Code Editor with Fallback */}
+          {/* Code Editor with Fallback (Web uses plainCodeInput to prevent infinite render loops) */}
           <View style={styles.editorBox}>
-            {CodeEditor ? (
+            {CodeEditor && Platform.OS !== 'web' ? (
               <CodeEditor
                 style={{
                   ...styles.codeEditorStyle,
@@ -105,14 +128,14 @@ export default function CodingQuestionView({
                 language={question.language || 'javascript'}
                 syntaxStyle={CodeEditorSyntaxStyles.atomOneDark}
                 showLineNumbers
-                initialValue={code}
-                onChange={onChangeCode}
+                initialValue={initialCodeRef.current}
+                onChange={handleEditorChange}
               />
             ) : (
               <TextInput
                 multiline
                 value={code}
-                onChangeText={onChangeCode}
+                onChangeText={handleEditorChange}
                 style={styles.plainCodeInput}
                 autoCapitalize="none"
                 autoCorrect={false}

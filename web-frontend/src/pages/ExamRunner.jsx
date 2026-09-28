@@ -11,6 +11,7 @@ import {
   Code2,
   Lock,
   EyeOff,
+  CameraOff,
   ChevronLeft,
   ChevronRight,
   Info,
@@ -20,6 +21,7 @@ import { Badge } from '../components/ui/Badge';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui/Dialog';
 import { CodeEditor } from '../components/exam/CodeEditor';
 import { WebcamFeed } from '../components/exam/WebcamFeed';
+import { SystemCheckModal } from '../components/exam/SystemCheckModal';
 import { useProctorIntegrity } from '../hooks/useProctorIntegrity';
 import { useWebcamProctor } from '../hooks/useWebcamProctor';
 import { useNotifications } from '../context/NotificationContext';
@@ -36,18 +38,44 @@ export default function ExamRunner() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submissionResult, setSubmissionResult] = useState(null);
+  const [submissionId, setSubmissionId] = useState(null);
+  const [answers, setAnswers] = useState({});
+  const [showSystemCheck, setShowSystemCheck] = useState(true);
+  const [examStarted, setExamStarted] = useState(false);
+  const [verificationSnapshotUrl, setVerificationSnapshotUrl] = useState(null);
+  const [candidateDetails, setCandidateDetails] = useState(null);
 
-  // Webcam periodic snapshot proctoring (30-second interval)
+  const currentUser = examSphereApi.auth.getCurrentUser();
+  const candidateEmail = currentUser?.email || 'student@examsphere.io';
+  const candidateName = currentUser?.name || 'Student Candidate';
+
+  // Webcam periodic snapshot proctoring (continuous 30-45s audit filmstrip)
   const webcamProctor = useWebcamProctor({
     examId: id || 'exam-cs101',
-    candidateEmail: 'alex.rivera@student.mit.edu',
-    intervalSeconds: 30,
-    enabled: !isSubmitted,
+    submissionId,
+    candidateEmail,
+    intervalSeconds: exam?.snapshotIntervalSeconds || 30,
+    enabled: examStarted && !isSubmitted,
     onSnapshotCaptured: ({ count }) => {
       showToast({
         type: 'info',
         title: 'Proctoring Snapshot Uploaded',
-        message: `Webcam frame #${count} captured and linked to session audit log.`,
+        message: `Webcam frame #${count} captured and linked to session audit filmstrip.`,
+        duration: 3000,
+      });
+    },
+    onCameraBlocked: ({ avgLuminance }) => {
+      recordViolation(
+        'camera-blocked',
+        `Webcam feed obstructed or pitch black (luminance: ${avgLuminance}). Ensure your face is clearly visible.`,
+        'High'
+      );
+    },
+    onCameraRestored: () => {
+      showToast({
+        type: 'success',
+        title: 'Camera Restored',
+        message: 'Webcam feed resumed. Camera shutter is open.',
         duration: 3000,
       });
     },
@@ -69,9 +97,10 @@ export default function ExamRunner() {
     recordViolation,
   } = useProctorIntegrity({
     examId: id || 'exam-cs101',
-    candidateName: 'Alex Rivera',
-    candidateEmail: 'alex.rivera@student.mit.edu',
+    candidateName: candidateDetails?.name || candidateName,
+    candidateEmail: candidateDetails?.email || candidateEmail,
     maxViolations: 3,
+    enabled: examStarted && !isSubmitted,
     onAutoSubmit: async () => {
       showToast({
         type: 'destructive',
@@ -79,33 +108,74 @@ export default function ExamRunner() {
         message: 'Security violation threshold exceeded. Your exam has been locked.',
         duration: 8000,
       });
-      // Auto-submit when violations max out
-      const res = await examSphereApi.submissions.submit(id || 'exam-cs101', {
-        autoSubmitted: true,
-        reason: 'Violation limit reached',
-      });
+      const answersList = Object.values(answers);
+      const subId = submissionId || id || 'exam-cs101';
+      const res = await examSphereApi.submissions.finalize(subId, answersList);
       setSubmissionResult(res.data);
       setIsSubmitted(true);
     },
   });
 
-  // Load exam data
+  // Load exam metadata on mount
   useEffect(() => {
     async function fetchExam() {
-      const res = await examSphereApi.exams.getById(id || 'exam-cs101');
-      setExam(res.data);
+      try {
+        const examIdToLoad = id || 'exam-cs101';
+        const res = await examSphereApi.exams.getById(examIdToLoad);
+        setExam(res.data);
+        if (res.data?.durationMinutes) {
+          setTimeLeftSeconds(res.data.durationMinutes * 60);
+        }
+      } catch (err) {
+        console.warn('Failed to load exam details:', err);
+      }
     }
     fetchExam();
   }, [id]);
 
-  // Exam timer
+  // Handle successful completion of Admit Card & Identity Verification Gate
+  const handleSystemCheckComplete = async ({
+    verificationSnapshotUrl: photoUrl,
+    candidateDetails: verifiedDetails,
+  }) => {
+    setVerificationSnapshotUrl(photoUrl);
+    if (verifiedDetails) {
+      setCandidateDetails(verifiedDetails);
+    }
+    setShowSystemCheck(false);
+
+    try {
+      const examIdToLoad = id || 'exam-cs101';
+      const startRes = await examSphereApi.submissions.start(examIdToLoad, photoUrl, verifiedDetails);
+      if (startRes?.data?.submissionId || startRes?.data?.id) {
+        setSubmissionId(startRes.data.submissionId || startRes.data.id);
+      }
+      setExamStarted(true);
+      enterFullscreen();
+      showToast({
+        type: 'success',
+        title: 'Assessment Started',
+        message: `Registered & Verified: ${verifiedDetails?.name || candidateName} (${verifiedDetails?.collegeId || 'ID Verified'}). Continuous proctoring active.`,
+        duration: 4000,
+      });
+    } catch (err) {
+      showToast({
+        type: 'destructive',
+        title: 'Access Denied',
+        message: err.response?.data?.message || err.message || 'Failed to start examination session',
+        duration: 8000,
+      });
+    }
+  };
+
+  // Exam timer (runs only after examStarted)
   useEffect(() => {
-    if (isSubmitted || isTerminated) return;
+    if (!examStarted || isSubmitted || isTerminated) return;
     const timer = setInterval(() => {
       setTimeLeftSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [isSubmitted, isTerminated]);
+  }, [examStarted, isSubmitted, isTerminated]);
 
   const formatTimer = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -125,13 +195,35 @@ export default function ExamRunner() {
     }
   }, [currentWarning, showToast]);
 
+  const handleAnswerSelect = async (questionId, option) => {
+    const updated = {
+      ...answers,
+      [questionId]: { questionId, selectedOption: option },
+    };
+    setAnswers(updated);
+    if (submissionId) {
+      try {
+        await examSphereApi.submissions.saveAnswer(submissionId, {
+          questionId,
+          selectedOption: option,
+        });
+      } catch (err) {
+        console.warn('Failed to save answer:', err);
+      }
+    }
+  };
+
   const handleManualSubmit = async () => {
     setShowSubmitModal(false);
-    const res = await examSphereApi.submissions.submit(id || 'exam-cs101', {
-      answers: [],
-    });
-    setSubmissionResult(res.data);
-    setIsSubmitted(true);
+    const answersList = Object.values(answers);
+    const subId = submissionId || id || 'exam-cs101';
+    try {
+      const res = await examSphereApi.submissions.finalize(subId, answersList);
+      setSubmissionResult(res.data);
+      setIsSubmitted(true);
+    } catch (err) {
+      console.error('Error submitting exam:', err);
+    }
   };
 
   const currentQuestion = exam?.questions?.[currentQuestionIndex] || exam?.questions?.[0];
@@ -171,7 +263,9 @@ export default function ExamRunner() {
               {exam?.title || 'CS101: Final Assessment'}
             </h1>
             <span className="text-[11px] text-slate-400 block font-mono">
-              Candidate: Alex Rivera &bull; Question {currentQuestionIndex + 1} of {exam?.questions?.length || 1}
+              Candidate: {candidateDetails?.name || candidateName}
+              {candidateDetails?.collegeId ? ` (Reg No: ${candidateDetails.collegeId})` : ''} &bull; Question{' '}
+              {currentQuestionIndex + 1} of {exam?.questions?.length || 1}
             </span>
           </div>
         </div>
@@ -264,15 +358,71 @@ export default function ExamRunner() {
 
           {/* Question Title & Description */}
           <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                {currentQuestion?.type === 'coding'
+                  ? 'Coding Problem'
+                  : currentQuestion?.type === 'mcq'
+                  ? 'Multiple Choice'
+                  : currentQuestion?.type === 'tf'
+                  ? 'True / False'
+                  : currentQuestion?.type === 'subjective'
+                  ? 'Subjective'
+                  : 'Question'}
+              </span>
+            </div>
+
             <h2 className="font-heading font-extrabold text-xl text-white">
-              {currentQuestion?.title || 'Coding Challenge'}
+              {currentQuestion?.title ||
+                (currentQuestion?.text?.includes('\n\n')
+                  ? currentQuestion.text.split('\n\n')[0]
+                  : currentQuestion?.text && currentQuestion.text.length > 50
+                  ? currentQuestion.text.substring(0, 50) + '...'
+                  : currentQuestion?.text) ||
+                `Question ${currentQuestionIndex + 1}`}
             </h2>
 
             <div className="prose prose-invert prose-sm text-slate-300 leading-relaxed space-y-3 font-sans">
-              <div className="whitespace-pre-wrap font-sans text-sm">
-                {currentQuestion?.description}
+              <div className="whitespace-pre-wrap font-sans text-sm leading-6">
+                {currentQuestion?.description ||
+                  (currentQuestion?.text?.includes('\n\n')
+                    ? currentQuestion.text.split('\n\n').slice(1).join('\n\n')
+                    : currentQuestion?.text) ||
+                  currentQuestion?.prompt ||
+                  'No additional question description provided.'}
               </div>
             </div>
+
+            {/* Test Cases / Example Preview in Coding Mode */}
+            {currentQuestion?.testCases && currentQuestion.testCases.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block font-mono">
+                  Sample Test Cases:
+                </span>
+                <div className="space-y-2">
+                  {currentQuestion.testCases
+                    .filter((tc) => !tc.isHidden)
+                    .slice(0, 3)
+                    .map((tc, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs font-mono space-y-1"
+                      >
+                        <div className="text-slate-400">
+                          <span className="text-slate-500">Input:</span>{' '}
+                          <span className="text-indigo-300">{tc.input || '(empty)'}</span>
+                        </div>
+                        <div className="text-slate-400">
+                          <span className="text-slate-500">Expected Output:</span>{' '}
+                          <span className="text-emerald-400">
+                            {tc.expectedOutput || tc.expected}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Limits Box */}
@@ -300,13 +450,92 @@ export default function ExamRunner() {
           </div>
         </section>
 
-        {/* RIGHT COLUMN: Monaco Code Editor & Test Runner (col-span-7) */}
-        <section className="lg:col-span-7 bg-slate-950 p-3 sm:p-4 flex flex-col h-full overflow-hidden">
-          <CodeEditor
-            question={currentQuestion}
-            submissionId="sub-demo-001"
-            initialCode={currentQuestion?.starterTemplates?.[currentQuestion?.defaultLanguage || 'javascript']}
-          />
+        {/* RIGHT COLUMN: Monaco Code Editor, MCQ / TF Option Selector, or Subjective (col-span-7) */}
+        <section className="lg:col-span-7 bg-slate-950 p-3 sm:p-6 flex flex-col h-full overflow-y-auto">
+          {currentQuestion?.type === 'mcq' || currentQuestion?.type === 'tf' ? (
+            <div className="space-y-4 max-w-xl mx-auto w-full my-auto">
+              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                <span className="text-[11px] font-mono uppercase text-indigo-400 font-semibold block">
+                  Question Prompt
+                </span>
+                <p className="text-base text-white font-medium whitespace-pre-wrap leading-relaxed">
+                  {currentQuestion?.description || currentQuestion?.text || currentQuestion?.title}
+                </p>
+              </div>
+
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Choose the correct answer:
+              </h3>
+              <div className="space-y-3">
+                {(currentQuestion?.options?.length ? currentQuestion.options : ['True', 'False']).map((opt, i) => {
+                  const qKey = currentQuestion._id || currentQuestion.id;
+                  const isSelected = answers[qKey]?.selectedOption === opt;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleAnswerSelect(qKey, opt)}
+                      className={`w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between ${
+                        isSelected
+                          ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-sm ring-1 ring-indigo-500/40'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-850'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}
+                        >
+                          {String.fromCharCode(65 + i)}
+                        </span>
+                        <span className="text-sm font-medium">{opt}</span>
+                      </div>
+                      {isSelected && <CheckCircle2 className="w-5 h-5 text-indigo-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : currentQuestion?.type === 'subjective' ? (
+            <div className="space-y-4 max-w-2xl mx-auto w-full my-auto">
+              <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                <span className="text-[11px] font-mono uppercase text-indigo-400 font-semibold block">
+                  Subjective Question Prompt
+                </span>
+                <p className="text-base text-white font-medium whitespace-pre-wrap leading-relaxed">
+                  {currentQuestion?.description || currentQuestion?.text || currentQuestion?.title}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+                  Candidate Answer:
+                </label>
+                <textarea
+                  rows={8}
+                  value={answers[currentQuestion._id || currentQuestion.id]?.answerText || ''}
+                  onChange={(e) => {
+                    const qKey = currentQuestion._id || currentQuestion.id;
+                    setAnswers((prev) => ({
+                      ...prev,
+                      [qKey]: { questionId: qKey, answerText: e.target.value }
+                    }));
+                  }}
+                  placeholder="Type your response here..."
+                  className="w-full p-4 rounded-xl bg-slate-900 border border-slate-800 text-white font-sans text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          ) : (
+            <CodeEditor
+              question={currentQuestion}
+              submissionId={submissionId || 'sub-demo-001'}
+              initialCode={currentQuestion?.starterTemplates?.[currentQuestion?.defaultLanguage || 'javascript'] || currentQuestion?.starterCode}
+            />
+          )}
         </section>
       </main>
 
@@ -444,6 +673,42 @@ export default function ExamRunner() {
           </Button>
         </DialogFooter>
       </Dialog>
+
+      {/* CAMERA SHUTTER CLOSED BLOCKING OVERLAY */}
+      {webcamProctor.isShutterClosed && examStarted && !isSubmitted && (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-150">
+          <div className="max-w-md w-full bg-slate-900 border-2 border-rose-500 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-rose-500/20 border border-rose-500 flex items-center justify-center">
+              <CameraOff className="w-9 h-9 text-rose-400 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="font-heading font-extrabold text-xl text-white">
+                Camera Shutter Closed or Lens Covered
+              </h3>
+              <p className="text-xs text-rose-300 font-mono mt-1">
+                Assessment Session Suspended
+              </p>
+            </div>
+            <p className="text-sm text-slate-300">
+              Your camera feed is obstructed. You cannot continue the assessment while your webcam is blocked.
+            </p>
+            <div className="p-3 bg-rose-950/60 border border-rose-800/80 rounded-xl text-xs text-rose-200 font-mono text-left space-y-1">
+              <div>&bull; Slide open the physical privacy shutter on your webcam.</div>
+              <div>&bull; Ensure room lighting is adequate and your face is visible.</div>
+              <div>&bull; The exam will automatically resume as soon as the camera feed is restored.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRE-EXAM SYSTEM DIAGNOSTICS & IDENTITY GATE */}
+      <SystemCheckModal
+        exam={exam}
+        candidateName={candidateName}
+        candidateEmail={candidateEmail}
+        isOpen={showSystemCheck}
+        onComplete={handleSystemCheckComplete}
+      />
     </div>
   );
 }

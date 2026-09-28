@@ -57,6 +57,7 @@ export const AuthProvider = ({ children }) => {
         isLoading,
         signIn,
         signOut,
+        logout: signOut,
         signUp,
       }}
     >

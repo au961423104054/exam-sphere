@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 
-export function Dialog({ open, onOpenChange, children }) {
+export function Dialog({ open, onOpenChange, className, children }) {
   if (!open) return null;
 
   return (
@@ -12,7 +12,7 @@ export function Dialog({ open, onOpenChange, children }) {
         onClick={() => onOpenChange && onOpenChange(false)}
       />
       {/* Modal Dialog Content Container */}
-      <div className="relative z-50 w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+      <div className={cn("relative z-50 w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150", className)}>
         {children}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { getStoredToken } from './api';
 
@@ -6,11 +7,18 @@ import { getStoredToken } from './api';
  * Retrieve Socket server URL from app config, env, or default localhost/emulator
  */
 export const getSocketUrl = () => {
+  if (Platform.OS === 'web') {
+    const host = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : 'localhost';
+    return `http://${host}:5000`;
+  }
+
+  if (Platform.OS === 'ios') {
+    return 'http://localhost:5000';
+  }
+
   return (
-    Constants.expoConfig?.extra?.socketUrl ||
-    Constants.manifest2?.extra?.expoClient?.extra?.socketUrl ||
-    Constants.manifest?.extra?.socketUrl ||
     process.env.EXPO_PUBLIC_SOCKET_URL ||
+    Constants.expoConfig?.extra?.socketUrl ||
     'http://10.0.2.2:5000'
   );
 };

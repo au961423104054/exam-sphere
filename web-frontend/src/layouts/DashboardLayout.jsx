@@ -29,29 +29,20 @@ export function DashboardLayout({ children, currentRole = 'student' }) {
 
   // Active user data
   const user = examSphereApi.auth.getCurrentUser() || {
-    name: currentRole === 'admin' ? 'Sarah Connor' : currentRole === 'teacher' ? 'Prof. Alan Turing' : 'Alex Rivera',
+    name: currentRole === 'admin' ? 'Administrator' : currentRole === 'teacher' ? 'Educator' : 'Student',
     email: `${currentRole}@examsphere.edu`,
     role: currentRole,
-    organization: 'MIT Department of EECS',
-  };
-
-  const handleRoleSwitch = (newRole) => {
-    examSphereApi.auth.login(`${newRole}@examsphere.edu`, 'password');
-    if (newRole === 'admin') navigate('/admin/dashboard');
-    else if (newRole === 'teacher') navigate('/teacher/dashboard');
-    else navigate('/student/dashboard');
   };
 
   const handleLogout = () => {
     examSphereApi.auth.logout();
-    navigate('/login');
+    navigate(currentRole === 'admin' ? '/admin/login' : '/login');
   };
 
   // Role-specific navigation links
   const studentLinks = [
     { to: '/student/dashboard', label: 'My Assessments', icon: BookOpen },
     { to: '/exam/exam-cs101', label: 'Take CS101 Exam', icon: FileCode, badge: 'Proctored' },
-    { to: '/login', label: 'Candidate Login', icon: Users },
   ];
 
   const teacherLinks = [
@@ -61,7 +52,6 @@ export function DashboardLayout({ children, currentRole = 'student' }) {
 
   const adminLinks = [
     { to: '/admin/dashboard', label: 'Admin Console', icon: ShieldCheck },
-    { to: '/admin/login', label: 'Admin Login Screen', icon: Users },
   ];
 
   const navLinks = currentRole === 'admin' ? adminLinks : currentRole === 'teacher' ? teacherLinks : studentLinks;
@@ -143,36 +133,6 @@ export function DashboardLayout({ children, currentRole = 'student' }) {
             </nav>
           </div>
 
-          {/* Quick Demo Switcher (Simulate Roles) */}
-          <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 text-xs">
-            <span className="text-slate-400 block mb-2 font-medium">Switch Active Role Demo:</span>
-            <div className="grid grid-cols-3 gap-1 font-mono text-[11px]">
-              <button
-                onClick={() => handleRoleSwitch('student')}
-                className={`py-1.5 rounded transition-colors ${
-                  currentRole === 'student' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                Student
-              </button>
-              <button
-                onClick={() => handleRoleSwitch('teacher')}
-                className={`py-1.5 rounded transition-colors ${
-                  currentRole === 'teacher' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                Teacher
-              </button>
-              <button
-                onClick={() => handleRoleSwitch('admin')}
-                className={`py-1.5 rounded transition-colors ${
-                  currentRole === 'admin' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                Admin
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* User Card in Sidebar Footer */}
@@ -184,7 +144,7 @@ export function DashboardLayout({ children, currentRole = 'student' }) {
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-white truncate">{user.name}</p>
               <span className="inline-block text-[10px] text-slate-400 capitalize font-mono">
-                {user.role} &bull; {user.organization.split(' ')[0]}
+                {user.role} &bull; ExamSphere
               </span>
             </div>
           </div>

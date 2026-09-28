@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { fetchExamDetails } from '../services/api';
 import Skeleton from '../components/Skeleton';
+import Badge from '../components/Badge';
+import Button from '../components/Button';
 
 export default function ExamDetailScreen({ route, navigation }) {
   const initialExam = route.params?.exam || {};
@@ -38,10 +40,11 @@ export default function ExamDetailScreen({ route, navigation }) {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Main Card */}
-        <View style={styles.card} className="bg-white rounded-xl p-5 mb-4 border border-slate-200">
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{exam.category || 'Computer Science'}</Text>
+        {/* Main Overview Card */}
+        <View style={styles.card}>
+          <View style={styles.topBadgeRow}>
+            <Badge variant="default" label={exam.category || 'Computer Science'} />
+            <Badge variant="accent" label="Proctoring Enforced" />
           </View>
           <Text style={styles.title}>{exam.title || 'Examination'}</Text>
           <Text style={styles.desc}>
@@ -68,7 +71,7 @@ export default function ExamDetailScreen({ route, navigation }) {
               </View>
               <View style={styles.specRow}>
                 <Text style={styles.specLabel}>Total Questions</Text>
-                <Text style={styles.specValue}>{exam.totalQuestions || exam.questions?.length || 4}</Text>
+                <Text style={styles.specValue}>{exam.totalQuestions || exam.questions?.length || 4} Questions</Text>
               </View>
               <View style={styles.specRow}>
                 <Text style={styles.specLabel}>Total Marks</Text>
@@ -82,7 +85,7 @@ export default function ExamDetailScreen({ route, navigation }) {
               </View>
               <View style={[styles.specRow, { borderBottomWidth: 0 }]}>
                 <Text style={styles.specLabel}>Programming Questions</Text>
-                <Text style={[styles.specValue, { color: '#2563EB' }]}>
+                <Text style={[styles.specValue, styles.textIndigo]}>
                   {hasCodingQuestions ? 'Yes (Live Runner Active)' : 'None'}
                 </Text>
               </View>
@@ -93,11 +96,13 @@ export default function ExamDetailScreen({ route, navigation }) {
         {/* Proctoring Protocol Card */}
         <View style={[styles.card, styles.proctorCard]}>
           <View style={styles.proctorHeader}>
-            <Text style={styles.proctorIcon}>🛡️</Text>
-            <View>
+            <View style={styles.proctorIconBox}>
+              <Text style={styles.proctorIcon}>🛡️</Text>
+            </View>
+            <View style={styles.proctorHeaderTitleBlock}>
               <Text style={styles.proctorTitle}>Active Proctoring & Integrity Rules</Text>
               <Text style={styles.proctorSub}>
-                Violation Threshold: Max {exam.violationThreshold || 3} incidents allowed
+                Violation Threshold: Max {exam.violationThreshold || 3} incidents permitted
               </Text>
             </View>
           </View>
@@ -105,42 +110,42 @@ export default function ExamDetailScreen({ route, navigation }) {
           <View style={styles.ruleItem}>
             <Text style={styles.bullet}>•</Text>
             <Text style={styles.ruleText}>
-              <Text style={styles.ruleBold}>Screenshot & Screen Recording Prevention</Text> is enforced. Screen capture is blocked on Android; recording and capture attempts on iOS are logged as violations.
+              <Text style={styles.ruleBold}>Screen Capture & Recording Prevention:</Text> Screen recording and screenshot captures are intercepted and logged directly to the supervisory audit trail.
             </Text>
           </View>
 
           <View style={styles.ruleItem}>
             <Text style={styles.bullet}>•</Text>
             <Text style={styles.ruleText}>
-              <Text style={styles.ruleBold}>App Switching Detection:</Text> Leaving or backgrounding this application records a violation. Reaching {exam.violationThreshold || 3} violations triggers automatic exam submission.
+              <Text style={styles.ruleBold}>App Switching Detection:</Text> Leaving or minimizing this exam session registers a violation. Reaching {exam.violationThreshold || 3} incidents will trigger immediate automatic submission.
             </Text>
           </View>
 
           <View style={styles.ruleItem}>
             <Text style={styles.bullet}>•</Text>
             <Text style={styles.ruleText}>
-              <Text style={styles.ruleBold}>Answer State Persistence:</Text> Code entries and answers are synchronized and cached for offline safety.
+              <Text style={styles.ruleBold}>Answer State Persistence:</Text> Code entries and selected choices are continually synchronized and cached locally for offline tolerance.
             </Text>
           </View>
         </View>
 
-        {/* Start CTA */}
-        <TouchableOpacity
-          style={styles.startBtn}
-          activeOpacity={0.8}
+        {/* Start Assessment CTA */}
+        <Button
+          title="Acknowledge & Begin Examination →"
           onPress={handleStartExam}
           disabled={loading}
-        >
-          <Text style={styles.startBtnText}>Acknowledge & Begin Examination →</Text>
-        </TouchableOpacity>
+          size="lg"
+          variant="primary"
+          style={styles.startBtn}
+        />
 
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          activeOpacity={0.8}
+        <Button
+          title="← Return to Exam Dashboard"
           onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.cancelBtnText}>← Return to Exam Dashboard</Text>
-        </TouchableOpacity>
+          variant="secondary"
+          size="md"
+          style={styles.cancelBtn}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -153,51 +158,46 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 18,
+    paddingBottom: 32,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  categoryBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  categoryText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2563EB',
-    textTransform: 'uppercase',
+  topBadgeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     color: '#0F172A',
-    lineHeight: 28,
+    fontFamily: 'Inter_700Bold',
+    lineHeight: 26,
     marginBottom: 8,
   },
   desc: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748B',
-    lineHeight: 20,
+    lineHeight: 19,
+    fontFamily: 'Inter_400Regular',
   },
   cardHeading: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1E293B',
-    marginBottom: 14,
+    fontFamily: 'Inter_700Bold',
+    marginBottom: 12,
   },
   specRow: {
     flexDirection: 'row',
@@ -207,23 +207,27 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   specLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748B',
-    fontWeight: '500',
+    fontFamily: 'Inter_500Medium',
   },
   specValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+    fontFamily: 'Inter_700Bold',
   },
   textRed: {
-    color: '#DC2626',
+    color: '#EF4444',
   },
   textGreen: {
-    color: '#16A34A',
+    color: '#10B981',
+  },
+  textIndigo: {
+    color: '#4F46E5',
   },
   proctorCard: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: '#FFFDF5',
     borderColor: '#FDE68A',
   },
   proctorHeader: {
@@ -231,20 +235,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  proctorIcon: {
-    fontSize: 24,
+  proctorIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 10,
   },
+  proctorIcon: {
+    fontSize: 20,
+  },
+  proctorHeaderTitleBlock: {
+    flex: 1,
+  },
   proctorTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#92400E',
+    fontFamily: 'Inter_700Bold',
   },
   proctorSub: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: '#B45309',
     marginTop: 2,
+    fontFamily: 'Inter_500Medium',
   },
   ruleItem: {
     flexDirection: 'row',
@@ -253,45 +270,25 @@ const styles = StyleSheet.create({
   },
   bullet: {
     fontSize: 16,
-    color: '#92400E',
+    color: '#B45309',
     marginRight: 6,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   ruleText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: '#78350F',
-    lineHeight: 18,
+    lineHeight: 17,
+    fontFamily: 'Inter_400Regular',
   },
   ruleBold: {
     fontWeight: '700',
+    fontFamily: 'Inter_700Bold',
   },
   startBtn: {
-    backgroundColor: '#2563EB',
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#2563EB',
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  startBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
+    marginBottom: 10,
   },
   cancelBtn: {
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelBtnText: {
-    color: '#475569',
-    fontSize: 14,
-    fontWeight: '600',
+    marginBottom: 10,
   },
 });

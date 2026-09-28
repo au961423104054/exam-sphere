@@ -23,16 +23,26 @@ import { examSphereApi } from '../services/api';
 export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [exams, setExams] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
   const [activeTab, setActiveTab] = useState('upcoming');
 
   useEffect(() => {
-    async function loadExams() {
+    async function loadStudentData() {
       setLoading(true);
-      const res = await examSphereApi.exams.list();
-      setExams(res.data || []);
-      setLoading(false);
+      try {
+        const [examsRes, subsRes] = await Promise.all([
+          examSphereApi.exams.list(),
+          examSphereApi.submissions.getMine()
+        ]);
+        setExams(examsRes.data || []);
+        setSubmissions(subsRes.data || []);
+      } catch (err) {
+        console.warn('Failed to load student data:', err);
+      } finally {
+        setLoading(false);
+      }
     }
-    loadExams();
+    loadStudentData();
   }, []);
 
   const upcomingExams = exams.filter((e) => e.status !== 'Completed');
@@ -46,6 +56,8 @@ export default function StudentDashboard() {
     );
   }
 
+  const currentUser = examSphereApi.auth.getCurrentUser();
+
   return (
     <DashboardLayout currentRole="student">
       <div className="space-y-8">
@@ -56,7 +68,7 @@ export default function StudentDashboard() {
               Student Assessment Portal
             </h1>
             <p className="text-slate-500 text-sm mt-1">
-              Welcome back, Alex Rivera. Review your scheduled exams, launch proctored test sessions, and view grade reports.
+              Welcome back, {currentUser?.name || 'Student'}. Review your scheduled exams, launch proctored test sessions, and view grade reports.
             </p>
           </div>
 
@@ -106,7 +118,7 @@ export default function StudentDashboard() {
                   {completedExams.length + 3}
                 </span>
                 <span className="text-xs text-emerald-600 block mt-1 font-medium">
-                  All certificates generated
+                  All scorecards generated
                 </span>
               </div>
             </CardContent>
@@ -250,30 +262,54 @@ export default function StudentDashboard() {
 
             {activeTab === 'completed' && (
               <div className="space-y-4">
-                <div className="p-5 rounded-xl border border-slate-200 bg-slate-50/60 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">Biology</Badge>
-                      <Badge variant="success">Passed</Badge>
-                    </div>
-                    <h4 className="font-heading font-semibold text-base text-slate-900">
-                      BIO102: Molecular Genetics & Gene Expression
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      Submitted Sep 20, 2026 &bull; Verified auto-evaluation completed
-                    </p>
-                  </div>
+                {submissions.length > 0 ? (
+                  submissions.map((sub) => (
+                    <div
+                      key={sub.id || sub.submissionId}
+                      className="p-5 rounded-xl border border-slate-200 bg-slate-50/60 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={sub.passed ? 'success' : 'destructive'}>
+                            {sub.passed ? 'Passed' : 'Needs Review'}
+                          </Badge>
+                          <Badge variant="secondary">{sub.status || 'Graded'}</Badge>
+                          {sub.violationCount > 0 && (
+                            <Badge variant="warning">
+                              {sub.violationCount} Incident Flag{sub.violationCount > 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                        </div>
+                        <h4 className="font-heading font-semibold text-base text-slate-900">
+                          {sub.examTitle || 'Assessment Attempt'}
+                        </h4>
+                        <p className="text-xs text-slate-500">
+                          {sub.submittedAt ? `Submitted on ${new Date(sub.submittedAt).toLocaleDateString()}` : 'Attempt recorded'} &bull; Verified auto-evaluation completed
+                        </p>
+                      </div>
 
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <span className="text-xs text-slate-400 uppercase font-semibold block">Score</span>
-                      <span className="font-heading font-bold text-xl text-emerald-600">46 / 50</span>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <span className="text-xs text-slate-400 uppercase font-semibold block">Score</span>
+                          <span className={`font-heading font-bold text-xl ${sub.passed ? 'text-emerald-600' : 'text-slate-800'}`}>
+                            {sub.score} / {sub.totalMarks}
+                          </span>
+                        </div>
+                        <Link to={`/exam/${sub.examId}`}>
+                          <Button size="sm" variant="outline">
+                            Review Attempt
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
-                    <Button size="sm" variant="outline">
-                      View Report Card
-                    </Button>
+                  ))
+                ) : (
+                  <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                    <CheckCircle2 className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                    <h4 className="font-heading font-semibold text-slate-700">No completed submissions yet</h4>
+                    <p className="text-xs text-slate-500 mt-1">Take an assessment to view graded reports here.</p>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </CardContent>
