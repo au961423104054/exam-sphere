@@ -71,6 +71,36 @@ const questionSchema = new mongoose.Schema(
       enum: ['javascript', 'python', 'java', 'cpp'],
       default: 'javascript'
     },
+    functionName: {
+      type: String,
+      trim: true,
+      default: 'solve'
+    },
+    returnType: {
+      type: String,
+      trim: true,
+      default: 'int'
+    },
+    className: {
+      type: String,
+      trim: true,
+      default: 'Solution'
+    },
+    parameters: [
+      {
+        name: { type: String, required: true, trim: true },
+        type: { type: String, required: true, trim: true }
+      }
+    ],
+    functionSignature: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    starterTemplates: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    },
     starterCode: {
       type: String,
       default: ''

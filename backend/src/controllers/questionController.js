@@ -6,6 +6,11 @@ const { shuffleWithSeed } = require('../utils/shuffleHelper');
 const { sampleQuestionsByRule } = require('../utils/questionSampler');
 const { findExamByIdOrSlug } = require('../utils/examResolver');
 const { success, fail } = require('../utils/http');
+const {
+  generateFunctionSignature,
+  generateStarterTemplatesAllLanguages,
+  generateStarterTemplate
+} = require('../services/codeHarnessService');
 
 const questionValidationSchema = Joi.object({
   examId: Joi.string().required(),
@@ -19,6 +24,17 @@ const questionValidationSchema = Joi.object({
   marks: Joi.number().min(0).optional(),
   tags: Joi.array().items(Joi.string()).optional(),
   language: Joi.string().valid('javascript', 'python', 'java', 'cpp').optional(),
+  functionName: Joi.string().trim().allow('').optional(),
+  returnType: Joi.string().trim().allow('').optional(),
+  className: Joi.string().trim().allow('').optional(),
+  parameters: Joi.array().items(
+    Joi.object({
+      name: Joi.string().required(),
+      type: Joi.string().required()
+    })
+  ).optional(),
+  functionSignature: Joi.string().allow('').optional(),
+  starterTemplates: Joi.object().optional(),
   starterCode: Joi.string().allow('').optional(),
   testCases: Joi.array().optional(),
   timeLimitMs: Joi.number().min(100).optional(),
@@ -67,6 +83,21 @@ const createQuestion = async (req, res) => {
         ? resolvedText.split('\n\n').slice(1).join('\n\n')
         : resolvedText);
 
+    let functionName = value.functionName || 'solve';
+    let returnType = value.returnType || 'int';
+    let className = value.className || 'Solution';
+    let parameters = Array.isArray(value.parameters) && value.parameters.length > 0
+      ? value.parameters
+      : [{ name: 'arr', type: 'int[]' }];
+    let functionSignature =
+      value.functionSignature ||
+      generateFunctionSignature(value.language || 'javascript', { functionName, returnType, className, parameters });
+    let starterTemplates =
+      value.starterTemplates && Object.keys(value.starterTemplates).length > 0
+        ? value.starterTemplates
+        : generateStarterTemplatesAllLanguages({ functionName, returnType, className, parameters });
+    let starterCode = value.starterCode || starterTemplates[value.language || 'javascript'] || '';
+
     const question = await Question.create({
       examId,
       type,
@@ -78,7 +109,13 @@ const createQuestion = async (req, res) => {
       marks: value.marks || 1,
       tags: value.tags || [],
       language: value.language || 'javascript',
-      starterCode: value.starterCode || '',
+      functionName,
+      returnType,
+      className,
+      parameters,
+      functionSignature,
+      starterTemplates,
+      starterCode,
       testCases: normalizeTestCases(value.testCases),
       timeLimitMs: value.timeLimitMs || 2000,
       memoryLimitMb: value.memoryLimitMb || 128
@@ -193,6 +230,22 @@ const uploadQuestionBank = async (req, res) => {
         options = ['True', 'False'];
       }
 
+      let functionName = q.functionName || 'solve';
+      let returnType = q.returnType || 'int';
+      let className = q.className || 'Solution';
+      let parameters = Array.isArray(q.parameters) && q.parameters.length > 0
+        ? q.parameters
+        : [{ name: 'arr', type: 'int[]' }];
+      let functionSignature =
+        q.functionSignature ||
+        generateFunctionSignature(q.language || 'javascript', { functionName, returnType, className, parameters });
+      let starterTemplates =
+        q.starterTemplates && Object.keys(q.starterTemplates).length > 0
+          ? q.starterTemplates
+          : generateStarterTemplatesAllLanguages({ functionName, returnType, className, parameters });
+      let starterCode =
+        q.starterCode || q.starterTemplates?.[q.language || 'javascript'] || starterTemplates[q.language || 'javascript'] || '';
+
       return {
         examId: exam._id,
         type,
@@ -205,7 +258,13 @@ const uploadQuestionBank = async (req, res) => {
         tags: Array.isArray(q.tags) ? q.tags : [],
         difficulty: q.difficulty || 'Medium',
         language: q.language || 'javascript',
-        starterCode: q.starterCode || q.starterTemplates?.[q.language || 'javascript'] || '',
+        functionName,
+        returnType,
+        className,
+        parameters,
+        functionSignature,
+        starterTemplates,
+        starterCode,
         testCases: normalizeTestCases(q.testCases || []),
         timeLimitMs: q.timeLimitMs || (q.timeLimitSeconds ? q.timeLimitSeconds * 1000 : 2000),
         memoryLimitMb: q.memoryLimitMb || 128
@@ -364,6 +423,12 @@ const updateQuestion = async (req, res) => {
       'tags',
       'difficulty',
       'language',
+      'functionName',
+      'returnType',
+      'className',
+      'parameters',
+      'functionSignature',
+      'starterTemplates',
       'starterCode',
       'timeLimitMs',
       'memoryLimitMb'
@@ -371,6 +436,24 @@ const updateQuestion = async (req, res) => {
     fields.forEach((key) => {
       if (req.body[key] !== undefined) question[key] = req.body[key];
     });
+    if (question.type === 'coding') {
+      if (!question.functionSignature) {
+        question.functionSignature = generateFunctionSignature(question.language || 'javascript', {
+          functionName: question.functionName,
+          returnType: question.returnType,
+          className: question.className,
+          parameters: question.parameters
+        });
+      }
+      if (!question.starterTemplates || Object.keys(question.starterTemplates).length === 0) {
+        question.starterTemplates = generateStarterTemplatesAllLanguages({
+          functionName: question.functionName,
+          returnType: question.returnType,
+          className: question.className,
+          parameters: question.parameters
+        });
+      }
+    }
     if (req.body.testCases) question.testCases = normalizeTestCases(req.body.testCases);
     await question.save();
     return success(res, question, 'Question updated');

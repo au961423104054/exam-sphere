@@ -532,8 +532,36 @@ export default function ExamRunner() {
           ) : (
             <CodeEditor
               question={currentQuestion}
-              submissionId={submissionId || 'sub-demo-001'}
-              initialCode={currentQuestion?.starterTemplates?.[currentQuestion?.defaultLanguage || 'javascript'] || currentQuestion?.starterCode}
+              submissionId={submissionId || id || 'sub-demo-001'}
+              initialCode={
+                answers[currentQuestion?._id || currentQuestion?.id]?.code ||
+                currentQuestion?.starterTemplates?.[currentQuestion?.defaultLanguage || currentQuestion?.language || 'javascript'] ||
+                currentQuestion?.starterCode
+              }
+              onCodeChange={(newCode, newLang) => {
+                const qKey = currentQuestion._id || currentQuestion.id;
+                setAnswers((prev) => ({
+                  ...prev,
+                  [qKey]: {
+                    questionId: qKey,
+                    code: newCode,
+                    language: newLang,
+                  },
+                }));
+              }}
+              onSubmitSuccess={(res) => {
+                const qKey = currentQuestion._id || currentQuestion.id;
+                setAnswers((prev) => ({
+                  ...prev,
+                  [qKey]: {
+                    questionId: qKey,
+                    code: prev[qKey]?.code || '',
+                    language: prev[qKey]?.language || 'javascript',
+                    marksAwarded: res.marksAwarded,
+                    testResults: res.results,
+                  },
+                }));
+              }}
             />
           )}
         </section>

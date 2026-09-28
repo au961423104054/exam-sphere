@@ -36,13 +36,50 @@ export function TeacherCodingQuestionBuilder({
   const [timeLimit, setTimeLimit] = useState(2);
   const [memoryLimit, setMemoryLimit] = useState(128);
   const [defaultLanguage, setDefaultLanguage] = useState('javascript');
+  const [functionName, setFunctionName] = useState('findLargest');
+  const [returnType, setReturnType] = useState('int');
+  const [className, setClassName] = useState('Solution');
+  const [parameters, setParameters] = useState([
+    { id: 'p-1', name: 'arr', type: 'int[]' },
+  ]);
+
+  const generateSignaturePreview = (lang) => {
+    const pStr = parameters.map((p) => p.name || 'arg').join(', ');
+    if (lang === 'java') {
+      const jParams = parameters.map((p) => `${p.type || 'int'} ${p.name || 'arg'}`).join(', ');
+      return `public ${returnType || 'int'} ${functionName || 'solve'}(${jParams})`;
+    }
+    if (lang === 'cpp') {
+      const cParams = parameters.map((p) => `${p.type || 'vector<int>&'} ${p.name || 'arg'}`).join(', ');
+      return `${returnType || 'int'} ${functionName || 'solve'}(${cParams})`;
+    }
+    if (lang === 'python') {
+      return `def ${functionName || 'solve'}(${pStr}):`;
+    }
+    return `function ${functionName || 'solve'}(${pStr})`;
+  };
+
+  const generateTemplateForLang = (lang) => {
+    const sig = generateSignaturePreview(lang);
+    if (lang === 'java') {
+      return `class ${className || 'Solution'} {\n    ${sig} {\n        // Write your solution here\n        return 0;\n    }\n}`;
+    }
+    if (lang === 'cpp') {
+      return `class ${className || 'Solution'} {\npublic:\n    ${sig} {\n        // Write your solution here\n        return 0;\n    }\n};`;
+    }
+    if (lang === 'python') {
+      return `${sig}\n    # Write your solution here\n    pass`;
+    }
+    return `/**\n * @return {${returnType}}\n */\n${sig} {\n  // Write your solution here\n  return 0;\n}`;
+  };
+
   const [starterCode, setStarterCode] = useState(
-    `/**\n * @param {string} s\n * @return {number}\n */\nfunction solution(s) {\n  // Write your code here\n  return 0;\n}`
+    `/**\n * @param {number[]} arr\n * @return {number}\n */\nfunction findLargest(arr) {\n  // Write your solution here\n  return 0;\n}`
   );
   const [testCases, setTestCases] = useState([
-    { id: 'tc-1', input: 's = "abcabcbb"', expectedOutput: '3', isHidden: false },
-    { id: 'tc-2', input: 's = "bbbbb"', expectedOutput: '1', isHidden: false },
-    { id: 'tc-3', input: 's = "pwwkew"', expectedOutput: '3', isHidden: true },
+    { id: 'tc-1', input: 'arr = [3, 9, 2, 5, 1]', expectedOutput: '9', isHidden: false },
+    { id: 'tc-2', input: 'arr = [-5, -2, -10]', expectedOutput: '-2', isHidden: false },
+    { id: 'tc-3', input: 'arr = [42]', expectedOutput: '42', isHidden: true },
   ]);
 
   // MCQ specific state
@@ -143,16 +180,34 @@ export function TeacherCodingQuestionBuilder({
     };
 
     if (questionType === 'coding') {
+      const cleanParams = parameters.map((p) => ({
+        name: p.name.trim() || 'arg',
+        type: p.type.trim() || 'int[]',
+      }));
+
+      const templates = {
+        javascript: generateTemplateForLang('javascript'),
+        python: generateTemplateForLang('python'),
+        java: generateTemplateForLang('java'),
+        cpp: generateTemplateForLang('cpp'),
+      };
+      if (starterCode) {
+        templates[defaultLanguage] = starterCode;
+      }
+
       questionPayload = {
         ...questionPayload,
+        functionName: functionName.trim() || 'solve',
+        returnType: returnType.trim() || 'int',
+        className: className.trim() || 'Solution',
+        parameters: cleanParams,
+        functionSignature: generateSignaturePreview(defaultLanguage),
         timeLimitSeconds: Number(timeLimit) || 2,
         timeLimitMs: (Number(timeLimit) || 2) * 1000,
         memoryLimitMb: Number(memoryLimit) || 128,
         defaultLanguage,
-        starterCode,
-        starterTemplates: {
-          [defaultLanguage]: starterCode,
-        },
+        starterCode: starterCode || templates[defaultLanguage],
+        starterTemplates: templates,
         testCases: testCases.map((tc) => ({
           input: tc.input || '',
           expectedOutput: tc.expectedOutput || '',
@@ -346,6 +401,152 @@ export function TeacherCodingQuestionBuilder({
           {/* DYNAMIC FORM SECTION 1: CODING QUESTION */}
           {questionType === 'coding' && (
             <div className="space-y-6">
+              {/* FUNCTIONAL SIGNATURE & METHOD DEFINITION */}
+              <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-200/80 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-indigo-950 flex items-center gap-1.5">
+                      <Code2 className="w-4 h-4 text-indigo-600" />
+                      Functional Solution Contract & Signature
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Configure the exact method signature. Candidates will implement only this function body; driver harness code is handled in the background.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setStarterCode(generateTemplateForLang(defaultLanguage));
+                    }}
+                    className="text-xs gap-1 border-indigo-300 text-indigo-700 hover:bg-indigo-100"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Sync Template from Signature
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold uppercase text-slate-700">
+                      Method / Function Name *
+                    </label>
+                    <Input
+                      placeholder="e.g. findLargest"
+                      value={functionName}
+                      onChange={(e) => setFunctionName(e.target.value)}
+                      className="h-9 font-mono text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold uppercase text-slate-700">
+                      Return Type *
+                    </label>
+                    <Input
+                      placeholder="e.g. int, int[], String, boolean, void"
+                      value={returnType}
+                      onChange={(e) => setReturnType(e.target.value)}
+                      className="h-9 font-mono text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold uppercase text-slate-700">
+                      Enclosing Class (Java / C++)
+                    </label>
+                    <Input
+                      placeholder="e.g. Solution"
+                      value={className}
+                      onChange={(e) => setClassName(e.target.value)}
+                      className="h-9 font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Parameters List */}
+                <div className="space-y-2 pt-2 border-t border-indigo-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold uppercase text-slate-700">
+                      Function Parameters
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setParameters([
+                          ...parameters,
+                          { id: `p-${Date.now()}`, name: `arg${parameters.length + 1}`, type: 'int' },
+                        ])
+                      }
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Parameter
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {parameters.map((param, pIdx) => (
+                      <div key={param.id || pIdx} className="flex items-center space-x-2 bg-white p-2 rounded-lg border border-indigo-100">
+                        <span className="text-[11px] font-mono text-slate-400 w-12 shrink-0">
+                          #{pIdx + 1}
+                        </span>
+                        <div className="flex-1">
+                          <Input
+                            placeholder="Parameter Name (e.g. arr)"
+                            value={param.name}
+                            onChange={(e) => {
+                              const updated = [...parameters];
+                              updated[pIdx].name = e.target.value;
+                              setParameters(updated);
+                            }}
+                            className="h-8 text-xs font-mono"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Input
+                            placeholder="Type (e.g. int[], string, boolean)"
+                            value={param.type}
+                            onChange={(e) => {
+                              const updated = [...parameters];
+                              updated[pIdx].type = e.target.value;
+                              setParameters(updated);
+                            }}
+                            className="h-8 text-xs font-mono"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          disabled={parameters.length <= 1}
+                          onClick={() => setParameters(parameters.filter((_, idx) => idx !== pIdx))}
+                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded transition-colors disabled:opacity-30"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live Signature Preview */}
+                <div className="p-2.5 bg-slate-900 rounded-lg text-slate-300 font-mono text-xs flex items-center justify-between border border-slate-800">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/80">
+                      Generated Signature
+                    </span>
+                    <span className="text-emerald-400 font-semibold">
+                      {generateSignaturePreview(defaultLanguage)}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500">
+                    Candidate Editor Preview
+                  </span>
+                </div>
+              </div>
+
               {/* Resource Constraints */}
               <div className="grid gap-4 sm:grid-cols-2 p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="space-y-1.5">

@@ -140,6 +140,14 @@ Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].
         timeLimitSeconds: 2,
         memoryLimitMb: 128,
         defaultLanguage: 'javascript',
+        functionName: 'twoSum',
+        returnType: 'int[]',
+        className: 'Solution',
+        parameters: [
+          { name: 'nums', type: 'int[]' },
+          { name: 'target', type: 'int' },
+        ],
+        functionSignature: 'public int[] twoSum(int[] nums, int target)',
         starterTemplates: {
           javascript: `/**
  * @param {number[]} nums
@@ -215,6 +223,11 @@ class Solution {
         timeLimitSeconds: 2,
         memoryLimitMb: 128,
         defaultLanguage: 'javascript',
+        functionName: 'reverseList',
+        returnType: 'ListNode',
+        className: 'Solution',
+        parameters: [{ name: 'head', type: 'ListNode' }],
+        functionSignature: 'public ListNode reverseList(ListNode head)',
         starterTemplates: {
           javascript: `function reverseList(head) {
   let prev = null;

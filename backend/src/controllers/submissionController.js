@@ -8,6 +8,7 @@ const { isIpAllowed } = require('../utils/ipChecker');
 const { findExamByIdOrSlug } = require('../utils/examResolver');
 const { sampleQuestionsByRule } = require('../utils/questionSampler');
 const { success, fail } = require('../utils/http');
+const { executeSubmissionCode } = require('../services/codeExecutionService');
 
 const normalizeLanguage = (language) => {
   if (!language) return 'javascript';
@@ -314,42 +315,48 @@ const runCode = async (req, res) => {
       return fail(res, `Question type is "${question.type}". Expected "coding"`, 400);
     }
 
+    // Only sample (non-hidden) test cases are executed for Run Code
     let sampleTestCases = (question.testCases || []).filter((tc) => !tc.isHidden);
     if (sampleTestCases.length === 0 && question.testCases && question.testCases.length > 0) {
-      sampleTestCases = question.testCases;
+      sampleTestCases = [question.testCases[0]];
     }
     if (Array.isArray(testCases) && testCases.length) {
-      sampleTestCases = testCases.map((tc) => ({
-        input: tc.input || '',
-        expectedOutput: tc.expectedOutput || tc.expected || '',
-        isHidden: !!tc.isHidden
-      }));
+      sampleTestCases = testCases
+        .map((tc) => ({
+          input: tc.input || '',
+          expectedOutput: tc.expectedOutput || tc.expected || '',
+          isHidden: !!tc.isHidden
+        }))
+        .filter((tc) => !tc.isHidden);
     }
 
-    const results = sampleTestCases.map((tc, idx) => ({
-      testCaseIndex: idx,
-      passed: false,
-      input: tc.input || '',
-      expectedOutput: tc.expectedOutput || '',
-      actualOutput: '',
-      statusDescription: 'Code execution engine offline',
-      error: 'Direct code execution is currently disabled. Submissions will be stored and queued for evaluation.',
-      time: 0,
-      memory: 0,
-      isHidden: !!tc.isHidden
-    }));
+    const targetLanguage = normalizeLanguage(language || question.language);
+
+    const execResult = await executeSubmissionCode({
+      question,
+      candidateCode: code,
+      language: targetLanguage,
+      testCases: sampleTestCases
+    });
 
     return success(
       res,
       {
-        allPassed: false,
-        passedCount: 0,
+        allPassed: execResult.allPassed,
+        passedCount: execResult.passedCount,
         totalCount: sampleTestCases.length,
-        results,
+        results: execResult.results,
+        runtimeMs: execResult.runtimeMs,
+        stdout: execResult.stdout,
+        compilationError: execResult.compilationError,
         questionId: question._id,
-        message: 'Code execution engine is not configured. Direct code execution is disabled.'
+        message: execResult.compilationError
+          ? `Compilation / Syntax Error: ${execResult.compilationError}`
+          : execResult.allPassed
+          ? 'All sample test cases passed successfully.'
+          : `${execResult.passedCount} of ${sampleTestCases.length} sample test cases passed.`
       },
-      'Code execution engine is currently offline or disabled'
+      'Code executed against sample test cases'
     );
   } catch (error) {
     return fail(res, 'Failed to run code', 500, { error: error.message });
@@ -379,6 +386,37 @@ const submitCode = async (req, res) => {
     const allTestCases = question.testCases || [];
     const targetLanguage = normalizeLanguage(language || question.language);
 
+    const execResult = await executeSubmissionCode({
+      question,
+      candidateCode: code,
+      language: targetLanguage,
+      testCases: allTestCases
+    });
+
+    const totalCount = allTestCases.length;
+    const passedCount = execResult.passedCount || 0;
+    const questionMarks = question.marks || 1;
+    const marksAwarded = totalCount > 0
+      ? Number(((passedCount / totalCount) * questionMarks).toFixed(2))
+      : 0;
+
+    // Secure results: redact hidden test case details
+    const sanitizedResults = execResult.results.map((r) => {
+      if (r.isHidden) {
+        return {
+          testCaseIndex: r.testCaseIndex,
+          passed: r.passed,
+          input: '[Hidden Test Case]',
+          expectedOutput: '[Hidden Test Case]',
+          actualOutput: r.passed ? '[Hidden Output Matched]' : '[Output Mismatch]',
+          error: r.error ? 'Runtime Error in Hidden Test Case' : null,
+          executionTimeMs: r.executionTimeMs,
+          isHidden: true
+        };
+      }
+      return r;
+    });
+
     const existingAnswerIndex = submission.answers.findIndex(
       (a) => a.questionId.toString() === question._id.toString()
     );
@@ -387,8 +425,8 @@ const submitCode = async (req, res) => {
       questionId: question._id,
       code,
       language: targetLanguage,
-      marksAwarded: 0,
-      testResults: []
+      marksAwarded,
+      testResults: sanitizedResults
     };
 
     if (existingAnswerIndex >= 0) submission.answers[existingAnswerIndex] = answerRecord;
@@ -403,16 +441,22 @@ const submitCode = async (req, res) => {
       res,
       {
         questionId: question._id,
-        marksAwarded: 0,
-        totalQuestionMarks: question.marks,
-        allPassed: false,
-        passedCount: 0,
-        totalCount: allTestCases.length,
+        marksAwarded,
+        totalQuestionMarks: questionMarks,
+        allPassed: execResult.allPassed,
+        passedCount,
+        totalCount,
         totalSubmissionScore: submission.score,
-        results: [],
-        message: 'Code submitted and saved successfully. Code execution is currently disabled pending offline/manual evaluation.'
+        results: sanitizedResults,
+        runtimeMs: execResult.runtimeMs,
+        compilationError: execResult.compilationError,
+        message: execResult.compilationError
+          ? `Submission saved with compilation error: ${execResult.compilationError}`
+          : execResult.allPassed
+          ? `All ${totalCount} test cases passed! Marks awarded: ${marksAwarded}/${questionMarks}`
+          : `${passedCount} of ${totalCount} test cases passed. Marks awarded: ${marksAwarded}/${questionMarks}`
       },
-      'Code submitted successfully'
+      'Code evaluated and submitted successfully'
     );
   } catch (error) {
     return fail(res, 'Failed to submit code', 500, { error: error.message });
@@ -426,22 +470,40 @@ const gradeMcqTf = async (submission) => {
   let score = 0;
   const negativeMarking = exam ? !!exam.negativeMarking : false;
 
-  submission.answers = submission.answers.map((ans) => {
+  for (let i = 0; i < submission.answers.length; i++) {
+    const ans = submission.answers[i];
     const question = byId.get(ans.questionId.toString());
-    if (!question) return ans;
+    if (!question) continue;
     if (question.type === 'coding') {
+      if ((ans.marksAwarded === undefined || ans.marksAwarded === 0) && ans.code) {
+        try {
+          const execRes = await executeSubmissionCode({
+            question,
+            candidateCode: ans.code,
+            language: ans.language || question.language,
+            testCases: question.testCases || []
+          });
+          const totalTc = (question.testCases || []).length;
+          if (totalTc > 0) {
+            ans.marksAwarded = Number(((execRes.passedCount / totalTc) * (question.marks || 1)).toFixed(2));
+          }
+        } catch (e) {
+          console.warn('Coding evaluation during final exam submit failed:', e.message);
+        }
+      }
       score += ans.marksAwarded || 0;
-      return ans;
+      continue;
     }
     if (question.type === 'subjective') {
-      return ans;
+      continue;
     }
     const selected = ans.selectedOption ?? ans.answerText;
     const correct = question.correctAnswer;
     
     // Check if unanswered
     if (selected === null || selected === undefined || String(selected).trim() === '') {
-      return { ...(ans.toObject?.() || ans), marksAwarded: 0 };
+      ans.marksAwarded = 0;
+      continue;
     }
 
     const passed = String(selected).trim().toLowerCase() === String(correct).trim().toLowerCase();
@@ -452,8 +514,8 @@ const gradeMcqTf = async (submission) => {
       marksAwarded = -Math.abs((question.marks || 1) * 0.25);
     }
     score += marksAwarded;
-    return { ...(ans.toObject?.() || ans), marksAwarded };
-  });
+    ans.marksAwarded = marksAwarded;
+  }
 
   submission.score = Math.max(0, Number(score.toFixed(2)));
   return submission;
