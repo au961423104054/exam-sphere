@@ -6,8 +6,28 @@ All uploads (webcam snapshots, periodic filmstrips, identity verification portra
 
 ---
 
+<<<<<<< HEAD
 ## 1. User
 Represents a student, teacher/evaluator, or system administrator.
+=======
+## 1. Organization
+Represents an academic institution, school, or department hosting exams on the platform.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `_id` | `ObjectId` | Primary key |
+| `name` | `String` | Organization / Institution name |
+| `plan` | `String` | Service tier (e.g., `'standard'`, `'institutional'`, `'enterprise'`) |
+| `settings` | `Object` | Multi-tenant settings: `{ defaultViolationThreshold: Number, branding: { logoUrl, primaryColor, tagline }, enabledFeatures: { codingQuestions, webcamProctoring, liveLeaderboard, certificateGeneration } }` |
+| `createdAt` | `Date` | Timestamp of organization creation |
+| `updatedAt` | `Date` | Timestamp of last modification |
+
+
+---
+
+## 2. User
+Represents a student, teacher/evaluator, or organization administrator.
+>>>>>>> 32c398f0d7b3dbac409e533fc94d0fd7b0fdb348
 
 | Field | Type | Description |
 | :--- | :--- | :--- |

@@ -101,10 +101,28 @@ All endpoints are prefixed with `/api` and return standardized JSON responses.
 - `DELETE /api/questions/:id` *(teacher, admin)*
   - Deletes question
 
+<<<<<<< HEAD
 ---
 
 ## 4. Submissions & Exam Runner (`/api/submissions`)
 *Authentication required for all routes.*
+=======
+### 9. Organizations (`/api/orgs`)
+- `GET /api/orgs/settings` - Fetch settings (branding, violation thresholds, enabled features) for authenticated user's organization
+- `PUT /api/orgs/settings` - Update settings for authenticated user's organization
+- `GET /api/orgs/:id` - Fetch organization details and settings (enforced by multi-tenant organizationId scope)
+- `POST /api/orgs` - Create a new organization profile
+- `PUT /api/orgs/:id` - Update organization profile and member policies
+
+### 10. Platform Administration (`/api/admin`) *(Admin Role Required)*
+- `GET /api/admin/organizations` - List all registered organizations and plans
+- `GET /api/admin/users` - List all users across the platform with optional role and search filtering
+- `PATCH /api/admin/users/:id/role` - Update a user's role (`student`, `teacher`, `admin`)
+- `GET /api/admin/exams` - List all exams across organizations with author details
+- `GET /api/admin/violations` - List all flagged submissions with incident logs and candidate metadata
+- `GET /api/admin/reports/summary` - Aggregate usage analytics and KPIs (exams, submissions, users, violations) platform-wide or per organization with optional CSV export (`?format=csv`)
+
+>>>>>>> 32c398f0d7b3dbac409e533fc94d0fd7b0fdb348
 
 - `POST /api/submissions/start` *(student)*
   - Body: `{ examId: string, verificationSnapshotUrl?: string }`

@@ -24,14 +24,15 @@ const initSocket = (server) => {
       const examRoom = `exam:${examId}`;
       socket.join(examRoom);
 
-      // If proctor/teacher/admin, join proctor oversight room
       if (role === 'teacher' || role === 'admin') {
         const proctorRoom = `exam:${examId}:proctors`;
         socket.join(proctorRoom);
-        console.log(`👨‍🏫 Proctor joined room: ${proctorRoom} (socket: ${socket.id})`);
-      } else {
-        console.log(`🎓 Candidate ${name || studentId} joined room: ${examRoom}`);
       }
+    });
+
+    socket.on('join:leaderboard', ({ examId }) => {
+      if (!examId) return;
+      socket.join(`exam:${examId}`);
     });
 
     // 2. Periodic Live Snapshot Frame Transmission

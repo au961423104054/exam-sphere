@@ -4,6 +4,40 @@ const Exam = require('../models/Exam');
 const Submission = require('../models/Submission');
 const ProctorLog = require('../models/ProctorLog');
 
+const getOverview = async (req, res) => {
+  try {
+    const [totalUsers, totalExams, activeExams, totalSubmissions, totalViolations] = await Promise.all([
+      User.countDocuments(),
+      Exam.countDocuments(),
+      Exam.countDocuments({
+        $or: [
+          { endTime: null },
+          { endTime: { $gte: new Date() } }
+        ]
+      }),
+      Submission.countDocuments(),
+      Submission.countDocuments({ $or: [{ status: 'flagged-for-review' }, { violationCount: { $gt: 0 } }] })
+    ]);
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalUsers,
+        totalExams,
+        activeExams,
+        totalSubmissions,
+        totalViolations,
+        integrityHealth: totalViolations === 0 ? '100%' : 'Nominal'
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to load admin overview',
+      error: error.message
+    });
+  }
+};
+
 /**
  * List all organizations
  * GET /api/admin/organizations
@@ -47,7 +81,6 @@ const getUsers = async (req, res) => {
 
     const users = await User.find(filter)
       .select('-passwordHash')
-      .populate('organizationId', 'name plan')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -65,14 +98,13 @@ const getUsers = async (req, res) => {
 };
 
 /**
- * List all exams across organizations
+ * List all exams across the platform
  * GET /api/admin/exams
  */
 const getExams = async (req, res) => {
   try {
     const exams = await Exam.find()
       .populate('createdBy', 'name email role')
-      .populate('organizationId', 'name plan')
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -174,8 +206,7 @@ const updateUserRole = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role,
-        organizationId: user.organizationId
+        role: user.role
       }
     });
   } catch (error) {
@@ -187,10 +218,76 @@ const updateUserRole = async (req, res) => {
   }
 };
 
+/**
+ * Update violation status (e.g., Dismissed, Confirmed Cheating)
+ * PATCH /api/admin/violations/:id/status
+ */
+const updateViolationStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const submission = await Submission.findById(id);
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: 'Submission not found'
+      });
+    }
+
+    if (status) {
+      submission.status = status;
+      await submission.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Violation status updated to "${status}"`,
+      data: submission
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update violation status',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Delete a user account
+ * DELETE /api/admin/users/:id
+ */
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (id === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete your own admin account'
+      });
+    }
+    await User.findByIdAndDelete(id);
+    return res.status(200).json({
+      success: true,
+      message: 'User account removed successfully'
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete user',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
+  getOverview,
   getOrganizations,
   getUsers,
   getExams,
   getViolations,
-  updateUserRole
+  updateUserRole,
+  updateViolationStatus,
+  deleteUser
 };

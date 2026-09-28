@@ -16,7 +16,14 @@ const proctorLogSchema = new mongoose.Schema(
         'screenshot-attempt',
         'copy-paste-attempt',
         'multiple-faces',
-        'no-face'
+        'no-face',
+        'camera-blocked',
+        'camera-obstructed',
+        'right-click-attempt',
+        'print-screen-attempt',
+        'audio-multiple-voices',
+        'periodic-snapshot',
+        'identity-verification'
       ],
       required: [true, 'Violation type is required']
     },
