@@ -1,6 +1,13 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const NAV_ICONS = {
+  ExamList: require('../../assets/icons/nav-exams.png'),
+  Leaderboard: require('../../assets/icons/nav-rankings.png'),
+  Notifications: require('../../assets/icons/nav-alerts.png'),
+  Profile: require('../../assets/icons/nav-profile.png'),
+};
 
 export default function BottomNavBar({ activeScreen, navigation, unreadNotifCount = 0 }) {
   const insets = useSafeAreaInsets();
@@ -9,26 +16,26 @@ export default function BottomNavBar({ activeScreen, navigation, unreadNotifCoun
     {
       name: 'ExamList',
       label: 'Exams',
-      icon: '📝',
+      iconAsset: NAV_ICONS.ExamList,
       onPress: () => navigation.navigate('ExamList'),
     },
     {
       name: 'Leaderboard',
       label: 'Rankings',
-      icon: '🏆',
+      iconAsset: NAV_ICONS.Leaderboard,
       onPress: () => navigation.navigate('Leaderboard', { examId: 'exam_101', examTitle: 'Full-Stack MERN Architecture Assessment' }),
     },
     {
       name: 'Notifications',
       label: 'Alerts',
-      icon: '🔔',
+      iconAsset: NAV_ICONS.Notifications,
       badge: unreadNotifCount,
       onPress: () => navigation.navigate('Notifications'),
     },
     {
       name: 'Profile',
       label: 'Profile',
-      icon: '👤',
+      iconAsset: NAV_ICONS.Profile,
       onPress: () => navigation.navigate('Profile'),
     },
   ];
@@ -53,9 +60,14 @@ export default function BottomNavBar({ activeScreen, navigation, unreadNotifCoun
               style={[styles.tabButton, isActive && styles.tabButtonActive]}
             >
               <View style={styles.iconWrapper}>
-                <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>
-                  {tab.icon}
-                </Text>
+                <Image
+                  source={tab.iconAsset}
+                  style={[
+                    styles.tabIconImage,
+                    { tintColor: isActive ? '#4F46E5' : '#64748B' },
+                  ]}
+                  resizeMode="contain"
+                />
                 {tab.badge > 0 && (
                   <View style={styles.badgeBox}>
                     <Text style={styles.badgeText}>
@@ -108,14 +120,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
+    width: 26,
+    height: 26,
   },
-  tabIcon: {
-    fontSize: 20,
-    opacity: 0.75,
-  },
-  tabIconActive: {
-    opacity: 1,
-    transform: [{ scale: 1.05 }],
+  tabIconImage: {
+    width: 22,
+    height: 22,
   },
   badgeBox: {
     position: 'absolute',

@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import Button from './Button';
 
 export default function EmptyState({
+  image,
   icon = '📋',
   title = 'No Items Found',
   description = 'There are no records to display at this time.',
@@ -12,9 +13,15 @@ export default function EmptyState({
 }) {
   return (
     <View style={[styles.container, style]}>
-      <View style={styles.iconCircle}>
-        <Text style={styles.iconText}>{icon}</Text>
-      </View>
+      {image ? (
+        <View style={styles.imageWrapper}>
+          <Image source={image} style={styles.stateImage} resizeMode="contain" />
+        </View>
+      ) : (
+        <View style={styles.iconCircle}>
+          <Text style={styles.iconText}>{icon}</Text>
+        </View>
+      )}
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.desc}>{description}</Text>
       {actionLabel && onAction ? (
@@ -36,6 +43,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 40,
     paddingHorizontal: 24,
+  },
+  imageWrapper: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  stateImage: {
+    width: 130,
+    height: 130,
   },
   iconCircle: {
     width: 64,

@@ -230,6 +230,7 @@ export default function ExamListScreen({ navigation }) {
           }
           ListEmptyComponent={
             <EmptyState
+              image={require('../../assets/illustrations/empty-exams.png')}
               icon="📝"
               title="No Exams Available"
               description="You have no examinations scheduled right now. Pull down to refresh."

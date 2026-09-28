@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { registerUser } from '../services/api';
@@ -81,7 +82,11 @@ export default function RegisterScreen({ navigation }) {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoSquircle}>
-              <Text style={styles.logoSquircleText}>📝</Text>
+              <Image
+                source={require('../../assets/branding/examsphere-mark.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.logoTitle}>Create Account</Text>
             <Text style={styles.subtitle}>
@@ -251,21 +256,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoSquircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    backgroundColor: '#4F46E5',
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#0F172A',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
     shadowColor: '#4F46E5',
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
-  logoSquircleText: {
-    fontSize: 28,
+  logoImage: {
+    width: 50,
+    height: 50,
   },
   logoTitle: {
     fontSize: 28,

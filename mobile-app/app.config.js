@@ -6,17 +6,12 @@ module.exports = ({ config }) => ({
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
-  splash: {
-    image: './assets/splash-icon.png',
-    resizeMode: 'contain',
-    backgroundColor: '#ffffff',
-  },
   ios: {
     supportsTablet: true,
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      backgroundColor: '#0F172A',
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',
@@ -35,6 +30,14 @@ module.exports = ({ config }) => ({
       },
     ],
     'expo-sharing',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/splash-icon.png',
+        resizeMode: 'contain',
+        backgroundColor: '#ffffff',
+      },
+    ],
   ],
   extra: {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:5000/api',

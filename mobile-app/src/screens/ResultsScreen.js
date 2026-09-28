@@ -9,6 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { downloadAndShareCertificate } from '../services/certificateService';
 import Badge from '../components/Badge';
@@ -61,9 +62,17 @@ export default function ResultsScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Banner */}
         <View style={styles.bannerBox}>
-          <Text style={styles.bannerEmoji}>
-            {autoSubmitted ? '⚠️' : isPassed ? '🎉' : '📊'}
-          </Text>
+          <Image
+            source={
+              autoSubmitted
+                ? require('../../assets/illustrations/error-state.png')
+                : isPassed
+                ? require('../../assets/illustrations/exam-success.png')
+                : require('../../assets/illustrations/empty-results.png')
+            }
+            style={styles.bannerIllustration}
+            resizeMode="contain"
+          />
           <Text style={styles.bannerTitle}>
             {autoSubmitted
               ? 'Assessment Auto-Submitted'
@@ -203,8 +212,9 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     width: '100%',
   },
-  bannerEmoji: {
-    fontSize: 42,
+  bannerIllustration: {
+    width: 140,
+    height: 140,
     marginBottom: 8,
   },
   bannerTitle: {

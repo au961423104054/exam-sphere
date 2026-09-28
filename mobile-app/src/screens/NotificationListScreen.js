@@ -196,6 +196,7 @@ export default function NotificationListScreen({ navigation }) {
         }
         ListEmptyComponent={
           <EmptyState
+            image={require('../../assets/illustrations/empty-notifications.png')}
             icon="🔔"
             title="No Notifications"
             description="You are all caught up! New exam reminders and score alerts will appear here."

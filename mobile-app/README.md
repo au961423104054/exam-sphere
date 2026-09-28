@@ -22,9 +22,11 @@ Cross-platform mobile examination candidate application for **ExamSphere** built
 
 ```text
 mobile-app/
-├── assets/                     # App icons, adaptive icons, and splash screens
+├── assets/                     # Enterprise brand assets, icons & illustrations
+│   ├── branding/               # ExamSphere logotypes and standalone marks
+│   ├── icons/                  # High-density navigation and feature icon set
+│   └── illustrations/          # Empty states and assessment status graphics
 ├── src/
-│   ├── assets/                 # Embedded graphic assets and icons
 │   ├── components/             # Reusable UI components (Buttons, Cards, Inputs)
 │   ├── context/                # Global React contexts (AuthContext)
 │   ├── navigation/             # Navigation stacks (AuthStack, MainStack, RootNavigator)

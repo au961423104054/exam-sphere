@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Modal,
   Switch,
+  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
@@ -199,15 +200,6 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handleDemoBypass = async () => {
-    await signIn('demo_token_' + Date.now(), {
-      email,
-      role: 'student',
-      name: 'Candidate Student',
-    });
-    navigation.navigate('Main');
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -221,7 +213,11 @@ export default function LoginScreen({ navigation }) {
           {/* Header & Logo */}
           <View style={styles.header}>
             <View style={styles.logoSquircle}>
-              <Text style={styles.logoSquircleText}>🎓</Text>
+              <Image
+                source={require('../../assets/branding/examsphere-mark.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.logoTitle}>
               Exam<Text style={styles.logoAccent}>Sphere</Text>
@@ -362,11 +358,6 @@ export default function LoginScreen({ navigation }) {
               size="md"
               style={styles.registerBtn}
             />
-
-            {/* Demo Quick Access */}
-            <TouchableOpacity style={styles.demoLink} onPress={handleDemoBypass}>
-              <Text style={styles.demoLinkText}>Instant Demo Access (Bypass) ⚡</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -583,21 +574,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoSquircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#4F46E5',
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#0F172A',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
     shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  logoSquircleText: {
-    fontSize: 28,
+  logoImage: {
+    width: 50,
+    height: 50,
   },
   logoTitle: {
     fontSize: 24,
@@ -790,16 +782,6 @@ const styles = StyleSheet.create({
   },
   registerBtn: {
     marginTop: 10,
-  },
-  demoLink: {
-    marginTop: 16,
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  demoLinkText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0D9488',
   },
 
   /* Modal Styles */
