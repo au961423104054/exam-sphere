@@ -21,7 +21,13 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    const secret = process.env.JWT_SECRET || 'default_jwt_secret';
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server authentication is not configured (JWT_SECRET missing).'
+      });
+    }
     const decoded = jwt.verify(token, secret);
 
     // Verify user exists in database
@@ -38,8 +44,7 @@ const authenticate = async (req, res, next) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role,
-      organizationId: user.organizationId
+      role: user.role
     };
 
     next();

@@ -3,10 +3,10 @@ const router = express.Router();
 const resultsController = require('../controllers/resultsController');
 const { authenticate } = require('../middleware/auth');
 
-// Leaderboard route (authenticated)
-router.get('/leaderboard/:examId', authenticate, resultsController.getLeaderboard);
-
-// Certificate download route (authenticated)
-router.get('/:id/certificate', authenticate, resultsController.downloadCertificate);
+router.use(authenticate);
+router.get('/leaderboard/:examId', resultsController.getLeaderboard);
+router.get('/exam/:examId', resultsController.getExamResults);
+router.get('/submission/:submissionId', resultsController.getSubmissionResult);
+router.get('/:id/certificate', resultsController.downloadCertificate);
 
 module.exports = router;

@@ -4,12 +4,9 @@ const orgController = require('../controllers/orgController');
 const { authenticate } = require('../middleware/auth');
 
 router.use(authenticate);
-
-// Settings for current user's organization
-router.get('/settings', orgController.getOrganizationSettings);
-router.put('/settings', orgController.updateOrganizationSettings);
-
-// Scoped organization retrieval
-router.get('/:id', orgController.getOrganizationById);
+router.get('/', orgController.listOrgs);
+router.post('/', orgController.createOrg);
+router.get('/:id', orgController.getOrg);
+router.put('/:id', orgController.updateOrg);
 
 module.exports = router;
